@@ -1,0 +1,278 @@
+---
+title: "Non-hierarhical vs hierarhical estimation of the two parameter mixture model: Parameter recovery simulations"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+### Introduction
+
+In this simulation, we will demonstrate how with few observations per participant (i.e. N=50), the non-hierarchical maximum likelihood estimates (MLE) of the two parameter mixture model are not recovered well. At the same time, the hierarchical version of the model, implemented in the `brms` package does a much better job at recovering the parameters for each participant.
+
+To start, let's load the relevant packages, as well as the saved output of the brms model. This will save us time, as we don't have to refit the model. If you want, you can replicate the analyses without preloading the model fit, by uncommenting all relevant lines and running the notebook. Note that the model fitting will take a few hours.
+
+```{r init, message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(here)
+  library(brms)
+  library(patchwork)
+})
+options(mc.cores = parallel::detectCores())
+load(here('output/par_rec_multi_level_simulation.RData'))
+```
+
+### Generate synthetic data
+
+First, we will generate synthetic continuous reproduction data. Each of `N=20` participants contributes `Nobs=50` observations in two conditions A and B. We selected 50 observations, because from our experience, with so few observations the MLE non-hierarchical method often fails to recover the correct individual parameters, so it will serve as a good showcase. We assume that participants vary in their memory precision (i.e. the $\kappa$ parameter of the von Mises distribution) and in the likelihood that their response comes from memory ($\rho$; here we specify it as $\theta$, which is the logit transformed $\rho$, because that's how brms estimates it). Therefore, the observations for each participant in conditions A and B are generated as follows, where j indexes participants, $\Delta\rho$ and $\Delta\kappa$ are the differences in the parameters between conditions B and A, $vM$ is the von Mises distribution and $\mathcal{U}$ is the uniform distribution:
+
+$$y_{Aj} \sim \rho_j \cdot vM(0, \kappa_j) + (1-\rho_j) \cdot \mathcal{U} (-\pi,\pi)$$
+$$y_{Bj} \sim (\rho_j+\Delta\rho_j) \cdot vM(0, \kappa_j+\Delta\kappa_j) + (1-\rho_j-\Delta\rho_j) \cdot \mathcal{U} (-\pi,\pi)$$
+$$\kappa \sim ~ \mathcal{N}(10, 2.5)$$
+$$\Delta\kappa \sim ~ \mathcal{N}(20, 5)$$
+$$\rho = \frac{e^\theta}{1+e^\theta}$$
+$$\theta \sim ~ \mathcal{N}(1, 0.5)$$
+$$\Delta\theta \sim ~ \mathcal{N}(-1, 0.25)$$
+
+In simple terms, participants on average have a precision of $\kappa = 10$ in Condition A, but they vary around that estimate (SD=2.5). In condition B, participants' precision is increased on average by $\Delta\kappa = 20$ relative to Condition A, but this also varies (SD=5). Similarly for the probability in memory ($\rho$) parameter. The code below accomplishes this (parts are commented out, because we load these values at the beginning of the script:
+
+```{r}
+#### generate synthetic data
+
+#### first, set population parameters
+N = 20
+Nobs = 50
+kappa1a_mu = 10
+kappa1a_sd = 2.5
+kappa1delta_mu = 20
+kappa1delta_sd = 5
+theta1a_mu = 1
+theta1a_sd = 0.5
+theta1delta_mu = -1
+theta1delta_sd = 0.25
+
+#### generate participant parameters (for theta, logit units)
+# kappa1a_i = rnorm(N, kappa1a_mu, kappa1a_sd)
+# kappa1delta_i = rnorm(N, kappa1delta_mu, kappa1delta_sd)
+# theta1a_i = rnorm(N, theta1a_mu, theta1a_sd)
+# theta1delta_i = rnorm(N, theta1delta_mu, theta1delta_sd)
+
+#### put parameters together
+# true_pars <- data.frame(id = rep(1:N, 2), condition = rep(c('A','B'), each=N), 
+#                     kappa = c(kappa1a_i, kappa1a_i+kappa1delta_i),
+#                     pmem = gtools::inv.logit(c(theta1a_i, theta1a_i+theta1delta_i)))
+
+
+#### simulate data for each trial
+# dat <- data.frame()
+# for (i in 1:N) {
+#   A_n = floor(Nobs*gtools::inv.logit(theta1a_i[i]))
+#   B_n = floor(Nobs*gtools::inv.logit(theta1a_i[i]+theta1delta_i[i]))
+#   datA <- data.frame(y=c(rvon_mises(A_n, 0, kappa1a_i[i]), runif(Nobs-A_n,-pi,pi)), condition = "A", id = i)
+#   datB <- data.frame(y=c(rvon_mises(B_n, 0, kappa1a_i[i]+kappa1delta_i[i]), runif(Nobs-B_n,-pi,pi)), condition = "B", id = i)
+#   DAT <- bind_rows(datA,datB)
+#   dat <- bind_rows(dat,DAT)
+# }
+```
+
+### Visualize synthetic data
+
+Here are the parameters for each participant and condition:
+
+```{r}
+true_pars
+```
+```{r fig.width=5, fig.height=5}
+true_pars %>% 
+  gather(par, value, kappa, pmem) %>% 
+  ggplot(aes(value)) +
+  geom_histogram(bins=10) +
+  facet_grid(condition ~ par, scales="free") +
+  theme_bw()
+```
+
+
+And here is the distribution of errors, characterized by higher precision in condition B, but with more guessing:
+
+```{r fig.width=5, fig.height=3}
+dat %>% 
+  ggplot(aes(y)) +
+  geom_density(aes(color=condition)) +
+  theme_bw() +
+  xlab('Angle error')
+```
+
+And as you can see, there is quite some variability by participant:
+
+```{r fig.width=6, fig.height=4}
+ggplot(dat, aes(y, color=condition)) +
+  geom_density() +
+  facet_wrap(~id) +
+  theme_bw()
+```
+
+
+### Fit non-hierarhical MLE version of the mixture model
+
+As is standard in the literature, we will first fit the mixture model using MLE separately to each participant and condition. We accomplish this using a couple of custom functions, but the same can be achieved with some existing R packages.
+
+```{r}
+# 2-p likelihood function
+LL <- function(dat) {
+  LL_resp <- function(par) {
+    y = dat$y
+    kappa = exp(par[1])
+    pmem = gtools::inv.logit(par[2])
+    lik_vm <- brms::dvon_mises(y,mean(y),kappa)
+    lik_un <- brms::dvon_mises(y,mean(y),0)
+    lik <- pmem*lik_vm+(1-pmem)*lik_un
+    LL <- -sum(log(lik))
+  }
+}
+
+# function for fit and return parameter estimates
+fit_mixture <- function(dat) {
+  require(stats4)
+  LL_resp <- LL(dat) 
+  fit <- optim(c(logkappa=2,theta=1), LL_resp)
+  coef = as.data.frame(t(fit$par))[1,]
+  coef$convergence <- fit$convergence
+  coef$kappa = exp(coef$logkappa)
+  coef$pmem = gtools::inv.logit(coef$theta)
+  return(coef)
+}
+
+
+# estimate parameters separately for each participant and condition
+mle_est <- dat %>% 
+  group_by(id, condition) %>% 
+  do({fit_mixture(.)}) %>% 
+  arrange(condition, id)
+```
+
+First, we check that all fits have converged:
+
+```{r}
+mean(mle_est$convergence == 0)
+```
+And now, we can check how well the individual participant paramters have been recovered. We plot the estimated parameters (y-axis) vs the true generating parameters (x-axis):
+
+```{r, fig.width=7, fig.height=3.25}
+r_kappa <- round(cor.test(true_pars$kappa, mle_est$kappa)$est,2)
+r_pmem <- round(cor.test(true_pars$pmem, mle_est$pmem)$est,2)
+
+p1 <- left_join(true_pars, mle_est, by=c('id','condition')) %>% 
+  ggplot(aes(kappa.x, kappa.y, color=condition)) +
+  geom_point() +
+  ggtitle('Kappa') +
+  xlab('True parameter') +
+  ylab('MLE estimate') +
+  theme_bw() +
+  annotate('text', x=15, y=40, label=paste0('r(40) = ', r_kappa)) +
+  geom_abline(intercept=0, slope=1) +
+  theme(legend.position="")
+
+p2 <- left_join(true_pars, mle_est, by=c('id','condition')) %>% 
+  ggplot(aes(pmem.x, pmem.y, color=condition)) +
+  geom_point() +
+  ggtitle('Pmem') +
+  xlab('True parameter') +
+  ylab('MLE estimate') +
+  theme_bw() +
+  annotate('text', x=0.4, y=0.8, label=paste0('r(40) = ', r_pmem)) +
+  geom_abline(intercept=0, slope=1)
+
+p1+p2
+ggsave(here('figures/par_rec_sim_mle.png'), width=7, height=3.25, units='in')
+```
+
+As we can, the non-hierarhical MLE estimates of Pmem are pretty good; however, the model fails to accurately estimate the individual kappa parameters. With only 50 observations per participant and condition, that's normal in our experience. Notably, from these estimates, a researcher might erroneously conclude that our manipulation affects only `pmem`, but not `kappa` (which, interestingly, happens often in published research on VWM). Let's see if the hierarhical model can do better.
+
+
+### Fit hierarhical version with brms
+
+The code is commented out, because it takes several hours to fit. The results are preloaded at the begining of the script, so they can be accessed by the relevant object names.
+
+```{r}
+# # create mixture of von Mises distributions
+# mix_vonMises <- mixture(von_mises,von_mises,order = "none")
+# 
+# # set up mixture model. allow kappa and theta to vary by condition
+# bf_mixture <- bf(y ~ 1,
+#                  kappa1 ~ condition + (condition||id),
+#                  kappa2 ~ 1,
+#                  theta1 ~ condition + (condition||id))
+# 
+# 
+# # check default priors
+# get_prior(bf_mixture, dat, mix_vonMises)
+# 
+# # contrain priors. Set mean of von mises distributions to be 0; set kappa of the
+# # second von mises distribution to be very low, approximating a uniform distribution
+# mix_priors <- prior(constant(0), class = Intercept, dpar = "mu1") +
+#   prior(constant(0), class = Intercept, dpar = "mu2") +
+#   prior(constant(-100), class = Intercept, dpar = "kappa2")
+# 
+# brms_fit <- brm(bf_mixture, dat, mix_vonMises, mix_priors)
+```
+
+Let's examine the model. Convergence of all parameters looks good (Rhat < 1.01, and hight Bulk_ESS; no warnings).
+
+```{r}
+brms_fit
+```
+
+Now, the values above don't tell us much, because in brms, kappa is log transformed and theta is the logit transformation of pmem. Therefore, we first need to extract the random effects, which are the parameter estimates for each participant, and then transform the parameters into the relevant scale:
+
+
+```{r}
+ranefs <- ranef(brms_fit)$id
+logkappa <- c(fixef(brms_fit)['kappa1_Intercept','Estimate']+ranefs[,'Estimate','kappa1_Intercept'], 
+              fixef(brms_fit)['kappa1_Intercept','Estimate']+ranefs[,'Estimate','kappa1_Intercept']+
+              fixef(brms_fit)['kappa1_conditionB','Estimate']+ranefs[,'Estimate','kappa1_conditionB'])
+
+theta = c(fixef(brms_fit)['theta1_Intercept','Estimate']+ranefs[,'Estimate','theta1_Intercept'],
+          fixef(brms_fit)['theta1_Intercept','Estimate']+ranefs[,'Estimate','theta1_Intercept']+
+          fixef(brms_fit)['theta1_conditionB','Estimate']+ranefs[,'Estimate','theta1_conditionB'])
+
+brms_est <- data.frame(id = rep(1:N, 2), 
+                       condition = rep(c('A','B'), each=N), 
+                       kappa = exp(logkappa),
+                       pmem = c(gtools::inv.logit(theta)))
+```
+
+As with the MLE model before, we can now check how well the individual participant parameters have been recovered. We plot the estimated parameters (y-axis) vs the true generating parameters (x-axis):
+
+```{r, fig.width=7, fig.height=3.25}
+r_kappa <- round(cor.test(true_pars$kappa, brms_est$kappa)$est,2)
+r_pmem <- round(cor.test(true_pars$pmem, brms_est$pmem)$est,2)
+
+p3 <- left_join(true_pars, brms_est, by=c('id','condition')) %>% 
+  ggplot(aes(kappa.x, kappa.y, color=condition)) +
+  geom_point() +
+  ggtitle('Kappa') +
+  xlab('True parameter') +
+  ylab('BRMS estimate') +
+  theme_bw() +
+  annotate('text', x=15, y=40, label=paste0('r(40) = ', r_kappa)) +
+  geom_abline(intercept=0, slope=1) +
+  theme(legend.position="")
+
+p4 <- left_join(true_pars, brms_est, by=c('id','condition')) %>% 
+  ggplot(aes(pmem.x, pmem.y, color=condition)) +
+  geom_point() +
+  ggtitle('Pmem') +
+  xlab('True parameter') +
+  ylab('BRMS estimate') +
+  theme_bw() +
+  annotate('text', x=0.4, y=0.8, label=paste0('r(40) = ', r_pmem)) +
+  geom_abline(intercept=0, slope=1)
+
+p3+p4
+
+
+ggsave(here('figures/par_rec_sim_brms.png'), width=7, height=3.25, units='in')
+```
+
+And voila - we can see that the BRMS model does a drastically better job at recovering the `kappa` parameter, relative to the MLE non-hierarhical version. This is because in the hierarhical model, the data from all participants partially informs parameter estimates for each individual participant, which is particularly helpful when we only have a few observations per participant.
