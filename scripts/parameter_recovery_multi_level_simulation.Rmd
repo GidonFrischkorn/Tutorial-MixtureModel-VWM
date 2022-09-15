@@ -1,9 +1,12 @@
 ---
-title: "Non-hierarhical vs hierarhical estimation of the two parameter mixture model: Parameter recovery simulations"
-output: 
+title: 'Non-hierarhical vs hierarhical estimation of the two parameter mixture model:
+  Parameter recovery simulations'
+output:
+  word_document:
+    toc: yes
   html_notebook:
-    toc: true
-    toc_float: true
+    toc: yes
+    toc_float: yes
 ---
 
 ### Introduction

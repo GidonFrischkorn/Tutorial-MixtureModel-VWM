@@ -1,0 +1,119 @@
+rm(list=ls())
+library(tidyverse)
+library(stats4)
+library(circular)
+library(lme4)
+library(brms)
+library(here)
+
+options(mc.cores = parallel::detectCores())
+
+mean_se2 <- function (x, mult = 1.96) 
+{
+  x <- stats::na.omit(x)
+  se <- mult * sqrt(stats::var(x)/length(x))
+  mean <- mean(x)
+  data.frame(y = mean, ymin = mean - se, ymax = mean + se)
+}
+
+# function for mixture model likelihood (MLE)
+mixtureLL <- function(dat) {
+  # transform x from degrees to radians
+  rad = dat[c('y','V1','V2','V4','V5')]
+  function(p_correct=2, p_other=1, sigma=9) {
+    # trasnform laten prob
+    p_c = exp(p_correct)/(exp(p_correct)+exp(p_other)+exp(0))
+    p_o = exp(p_other)/(exp(p_correct)+exp(p_other)+exp(0))
+    p_g = exp(0)/(exp(p_correct)+exp(p_other)+exp(0))
+    # transform the normal sd into radians kappa for circular vonmises concentration parameter
+    rad_sigma = sigma * pi /180
+    kappa = (1/rad_sigma) ** 2
+    l_norm <- brms::dvon_mises(rad$y, mu=0, kappa=kappa)
+    l_norm1 <- brms::dvon_mises(rad$y, mu=rad$V1, kappa=kappa)
+    l_norm2 <- brms::dvon_mises(rad$y, mu=rad$V2, kappa=kappa)
+    l_norm4 <- brms::dvon_mises(rad$y, mu=rad$V4, kappa=kappa)
+    l_norm5 <- brms::dvon_mises(rad$y, mu=rad$V5, kappa=kappa)
+    l_unif <- brms::dvon_mises(rad$y, mu=0, kappa=0)
+    likelihood <- p_c*l_norm + p_o/4*(l_norm1+l_norm2+l_norm4+l_norm5) + p_g*l_unif
+    -sum(log(likelihood))
+  }
+}
+
+# fit and return parameter estimates as a mixture of 6 distributions - 1 for correct, 4 for failed bindings, 1 unifor for guessing
+fit_mixture3 <- function(dat, init_values=list(p_correct=3, p_other=1, sigma=9)) {
+  require(stats4)
+  LL_resp <- mixtureLL(dat) 
+  # debug(LL_resp)
+  fit <- mle(LL_resp, start = init_values)
+  coef <- data.frame(t(fit@coef))
+  p_correct <- exp(coef$p_correct)/(exp(coef$p_correct)+exp(coef$p_other)+exp(0))
+  p_other <- exp(coef$p_other)/(exp(coef$p_correct)+exp(coef$p_other)+exp(0))
+  coef$p_correct <- p_correct
+  coef$p_other <- p_other
+  coef$p_guess <- 1-coef$p_correct-coef$p_other
+  coef$negll <- summary(fit)@m2logL
+  return(round(coef,3))
+}
+
+
+# load data and transform to radians
+dat <- read.csv(here('data/popov_so_reder_exp1.csv'))
+dat$y <- dat$y * pi /180
+dat$V1 <- dat$V1 * pi /180
+dat$V2 <- dat$V2 * pi /180
+dat$V4 <- dat$V4 * pi /180
+dat$V5 <- dat$V5 * pi /180
+
+# fit MLE model
+fit_mixture3(dat)
+
+#############################################################################!
+# BRMS                                                                   ####
+#############################################################################!
+
+# create mixture of von Mises distributions
+mix_vonMises1 <- mixture(von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),order = "none")
+
+# set up mixture model
+bf_mixture1 <- bf(y ~ 1,
+                  nlf(kappa1 ~ kappa),     # target distribution
+                  nlf(kappa2 ~ kappa),     # non-target
+                  nlf(kappa3 ~ kappa),     # non-target
+                  nlf(kappa4 ~ kappa),     # non-target
+                  nlf(kappa5 ~ kappa),     # non-target
+                  kappa6 ~ 1,              # uniform    
+                  theta1 ~ 1,              # pmem
+                  nlf(theta2 ~ thetant),   # p_intrusion
+                  nlf(theta3 ~ thetant),   # p_intrusion
+                  nlf(theta4 ~ thetant),   # p_intrusion
+                  nlf(theta5 ~ thetant),   # p_intrusion
+                  kappa ~ 1,
+                  thetant ~ 1,
+                  nlf(mu2 ~ V1),           # center non-target
+                  nlf(mu3 ~ V2),           # center non-target
+                  nlf(mu4 ~ V4),           # center non-target
+                  nlf(mu5 ~ V5),           # center non-target
+                  mu1 ~ 1,
+                  mu6 ~ 1,
+                  nl = TRUE)
+
+
+# check default priors
+get_prior(bf_mixture1, dat, mix_vonMises1)
+
+# contrain priors
+mix_priors1 <- prior(constant(0), class = Intercept, dpar = "mu1") +
+  prior(constant(0), class = Intercept, dpar = "mu6") +
+  prior(constant(-100), class = Intercept, dpar = "kappa6") +
+  prior(normal(5.0, 0.8), class = b, coef = "Intercept", nlpar = "kappa") +
+  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "thetant") 
+
+
+
+fit1 <- brm(bf_mixture1, dat, mix_vonMises1, mix_priors1, iter = 2000)
+
+exp(fixef(fit1)['kappa_Intercept','Estimate'])
+
+exp(fixef(fit1)['theta1_Intercept','Estimate'])/(exp(fixef(fit1)['theta1_Intercept','Estimate'])+4*exp(fixef(fit1)['thetant_Intercept','Estimate'])+1)
+4*exp(fixef(fit1)['thetant_Intercept','Estimate'])/(exp(fixef(fit1)['theta1_Intercept','Estimate'])+4*exp(fixef(fit1)['thetant_Intercept','Estimate'])+1)
+1/(exp(fixef(fit1)['theta1_Intercept','Estimate'])+4*exp(fixef(fit1)['thetant_Intercept','Estimate'])+1)
