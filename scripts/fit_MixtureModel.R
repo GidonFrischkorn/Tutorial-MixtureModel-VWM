@@ -1,11 +1,10 @@
-#' This is the first tutorial script for setting up the Zhang & Luck (2008) mixture model
+#' This is the tutorial script for setting up the Zhang & Luck (2008) mixture model
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
 #'  1) how the model is set up using the brms package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
-
 
 # 0) R Setup: Packages & Data --------------------------------------------------
 # start fresh
@@ -127,13 +126,14 @@ if (!file.exists(paste(getwd(),"output","fit_mixtureMod_ZL2008.RData", sep = "/"
 
 # 3) Model evaluation ----------------------------------------------------------
 
+## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predicitive check to evaluate overall model fit
 pp_check(fit_mixtureMod)
 
 # print results summary
 summary(fit_mixtureMod)
 
-
+## 3.2) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
 fixedEff <- fixef(fit_mixtureMod)
@@ -145,20 +145,8 @@ kappa_cols <- grepl("kappa1",rownames(fixedEff))
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]
 
-# prepare kappa estimates for plotting
-df_kappa_plot <- as.data.frame(exp(kappa_fixedFX)) %>% 
-  dplyr::mutate(sd_rad = sqrt(1/Estimate),
-          sd_rad_UL = sqrt(1/Q2.5),  # lower precision is higher s.d. 
-          sd_rad_LL = sqrt(1/Q97.5), # higher precision is lower s.d.
-          setsize = levels(data$setsize))
-
-# plot s.d. estimates over setsizes
-ggplot(data = df_kappa_plot,
-       aes(x = setsize, y = sd_rad, ymin = sd_rad_LL, ymax = sd_rad_UL)) +
-  geom_pointrange() +
-  labs(x = "Memory Set Size", y = "s.d. (in Radians)") +
-  theme_bw() +
-  theme(panel.grid.major.x = element_blank())
+# convert kappa estimates to absolute scale (radians)
+kappa_fixedFX <- exp(kappa_fixedFX)
 
 # extract theta estimates
 theta_fixedFX <- fixedEff[theta_cols,]
@@ -166,14 +154,58 @@ theta_fixedFX <- fixedEff[theta_cols,]
 # convert theta estimates into pMem estimates
 p_Mem_fixedFX <- gtools::inv.logit(theta_fixedFX)
 
+## 3.3) plot parameter estimates -----------------------------------------------
+
+# define defaults for clean ggplots
+clean_plot <- theme(panel.grid.major = element_blank(),
+                    panel.grid.minor = element_blank(),
+                    panel.background = element_blank(),
+                    axis.line.x = element_line(color = 'black'),
+                    axis.line.y = element_line(color = 'black'),
+                    legend.key = element_rect(fill = 'white'),
+                    text = element_text(size = 15))
+
+# prepare kappa estimates for plotting
+df_kappa_plot <- as.data.frame(kappa_fixedFX) %>% 
+  dplyr::mutate(
+    # convert kappa to the standard deviation in radians
+    sd_rad = sqrt(1/Estimate),
+    sd_rad_UL = sqrt(1/Q2.5),  # lower precision is higher s.d. 
+    sd_rad_LL = sqrt(1/Q97.5), # higher precision is lower s.d.
+    # convert standard deviation in radians to degrees
+    sd_deg = sd_rad / pi * 180,
+    sd_deg_UL = sd_rad_UL / pi * 180,
+    sd_deg_LL = sd_rad_LL / pi * 180,
+    # add set size variable
+    setsize = levels(data$setsize)
+  )
+
+# plot s.d. estimates over set sizes
+kappa_plot <- ggplot(data = df_kappa_plot,
+                     aes(x = setsize, y = sd_rad, ymin = sd_rad_LL, ymax = sd_rad_UL)) +
+  geom_pointrange() +
+  labs(x = "Memory Set Size", y = "s.d. (in Radians)") +
+  clean_plot
+
+# save plot with high resolution
+ggsave(
+  filename = paste(getwd(),"figures","plot_kappaEst_ZL2008.jpeg", sep = "/"),
+  plot = kappa_plot,
+)
+
 # prepare pMem estimates for ploting
 df_pMem_plot <- as.data.frame(p_Mem_fixedFX) %>% 
   dplyr::mutate(setsize = levels(data$setsize))
 
 # plot pMem estimates across setsize
-ggplot(data = df_pMem_plot,
-       aes(x = setsize, y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+pMem_plot <- ggplot(data = df_pMem_plot,
+                    aes(x = setsize, y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
   geom_pointrange() + 
   labs(x = "Memory Set Size", y = "pMem") +
-  theme_bw() +
-  theme(panel.grid.major.x = element_blank())
+  clean_plot
+
+# save plot with high resolution
+ggsave(
+  filename = paste(getwd(),"figures","plot_pmemEst_ZL2008.jpeg", sep = "/"),
+  plot = pMem_plot,
+)

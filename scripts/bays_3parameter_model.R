@@ -1,4 +1,5 @@
-rm(list=ls())
+rm(list = ls())
+
 library(tidyverse)
 library(stats4)
 library(circular)
@@ -39,7 +40,7 @@ mixtureLL <- function(dat) {
   }
 }
 
-# fit and return parameter estimates as a mixture of 6 distributions - 1 for correct, 4 for failed bindings, 1 unifor for guessing
+# fit and return parameter estimates as a mixture of 6 distributions - 1 for correct, 4 for failed bindings, 1 uniform for guessing
 fit_mixture3 <- function(dat, init_values=list(p_correct=3, p_other=1, sigma=9)) {
   require(stats4)
   LL_resp <- mixtureLL(dat) 
@@ -54,7 +55,6 @@ fit_mixture3 <- function(dat, init_values=list(p_correct=3, p_other=1, sigma=9))
   coef$negll <- summary(fit)@m2logL
   return(round(coef,3))
 }
-
 
 # load data and transform to radians
 dat <- read.csv(here('data/popov_so_reder_exp1.csv'))
@@ -72,41 +72,63 @@ fit_mixture3(dat)
 #############################################################################!
 
 # create mixture of von Mises distributions
-mix_vonMises1 <- mixture(von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),von_mises(link="identity"),order = "none")
+mix_vonMises1 <- mixture(von_mises(link="identity"),
+                         von_mises(link="identity"),
+                         von_mises(link="identity"),
+                         von_mises(link="identity"),
+                         von_mises(link="identity"),
+                         von_mises(link="identity"),
+                         order = "none")
 
 # set up mixture model
 bf_mixture1 <- bf(y ~ 1,
+                  # fix kappa over memory distributions
                   nlf(kappa1 ~ kappa),     # target distribution
                   nlf(kappa2 ~ kappa),     # non-target
                   nlf(kappa3 ~ kappa),     # non-target
                   nlf(kappa4 ~ kappa),     # non-target
                   nlf(kappa5 ~ kappa),     # non-target
-                  kappa6 ~ 1,              # uniform    
-                  theta1 ~ 1,              # pmem
-                  nlf(theta2 ~ thetant),   # p_intrusion
-                  nlf(theta3 ~ thetant),   # p_intrusion
-                  nlf(theta4 ~ thetant),   # p_intrusion
-                  nlf(theta5 ~ thetant),   # p_intrusion
-                  kappa ~ 1,
-                  thetant ~ 1,
+                  # kappa for guessing distribution will be fixed using priors
+                  kappa6 ~ 1,              # uniform  
+                  # specify mixing distributions for distinct item categories
+                  nlf(theta1 ~ theta_t),   # p_mem
+                  nlf(theta2 ~ theta_nt),  # p_intrusion
+                  nlf(theta3 ~ theta_nt),  # p_intrusion
+                  nlf(theta4 ~ theta_nt),  # p_intrusion
+                  nlf(theta5 ~ theta_nt),  # p_intrusion
+                  nlf(theta6 ~ theta_g),   # p_guess
+                  # target & guessing distribution will be centered using priors
+                  mu1 ~ 1, # fixed intercept constrained using priors
+                  mu6 ~ 1, # fixed intercept constrained using priors
+                  # center non-target distribution on data specified locations
                   nlf(mu2 ~ V1),           # center non-target
                   nlf(mu3 ~ V2),           # center non-target
                   nlf(mu4 ~ V4),           # center non-target
                   nlf(mu5 ~ V5),           # center non-target
-                  mu1 ~ 1,
-                  mu6 ~ 1,
+                  # now predict parameters of interest
+                  kappa ~ 1,     # fixed intercept for precision of memory distributions
+                  theta_t ~ 1    # fixed intercept for p_mem
+                  theta_nt ~ 1,  # fixed intercept for p_intrusion
+                  theta_g ~ 1,   # fixed intercept for p_guess
+                  # for brms to process this formula correclty, set non-linear to TRUE
                   nl = TRUE)
 
 
 # check default priors
 get_prior(bf_mixture1, dat, mix_vonMises1)
 
-# contrain priors
-mix_priors1 <- prior(constant(0), class = Intercept, dpar = "mu1") +
+# constrain priors to identify the model
+mix_priors1 <- 
+  # first we center the target and guessing distribution to zero
+  prior(constant(0), class = Intercept, dpar = "mu1") +
   prior(constant(0), class = Intercept, dpar = "mu6") +
+  # next, we set the guessing distribution to be uniform, kappa -> 0
   prior(constant(-100), class = Intercept, dpar = "kappa6") +
+  # next, we set reasonable priors for the to be estimated distributions
   prior(normal(5.0, 0.8), class = b, coef = "Intercept", nlpar = "kappa") +
-  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "thetant") 
+  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_t") +
+  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_nt") +
+  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_g") 
 
 
 
