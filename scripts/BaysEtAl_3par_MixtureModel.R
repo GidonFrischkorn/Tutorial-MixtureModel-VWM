@@ -37,33 +37,33 @@ adapt_delta <- .95
 max_treedepth <- 10
 
 # load data file
-data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>% 
+data_Bays2009 <- read.table(here("data/Bays2009.txt"), header = T) %>% 
   dplyr::mutate(# wrap cases smaller than -pi,
-                # or larger than pi around the circle
-                RespErr = dplyr::case_when(RespErr < -pi ~ RespErr + 2*pi,
-                                           RespErr > pi ~ RespErr - 2*pi,
-                                           TRUE ~ RespErr),
-                LureIdx1 = case_when(setsize >= 2 ~ 0,
-                                     TRUE ~ -100),
-                LureIdx2 = case_when(setsize >= 3 ~ 0,
-                                     TRUE ~ -100),
-                LureIdx3 = case_when(setsize >= 4 ~ 0,
-                                     TRUE ~ -100),
-                LureIdx4 = case_when(setsize >= 5 ~ 0,
-                                     TRUE ~ -100),
-                LureIdx5 = case_when(setsize >= 6 ~ 0,
-                                     TRUE ~ -100),
-                Pos_Lure1 = case_when(is.na(Pos_Lure1) ~ 0,
-                                      TRUE ~ Pos_Lure1),
-                Pos_Lure2 = case_when(is.na(Pos_Lure2) ~ 0,
-                                      TRUE ~ Pos_Lure2),
-                Pos_Lure3 = case_when(is.na(Pos_Lure3) ~ 0,
-                                      TRUE ~ Pos_Lure3),
-                Pos_Lure4 = case_when(is.na(Pos_Lure4) ~ 0,
-                                      TRUE ~ Pos_Lure4),
-                Pos_Lure5 = case_when(is.na(Pos_Lure5) ~ 0,
-                                      TRUE ~ Pos_Lure5),
-                setsize = as.factor(setsize),) %>% 
+    # or larger than pi around the circle
+    RespErr = dplyr::case_when(RespErr < -pi ~ RespErr + 2*pi,
+                               RespErr > pi ~ RespErr - 2*pi,
+                               TRUE ~ RespErr),
+    LureIdx1 = case_when(setsize >= 2 ~ 0,
+                         TRUE ~ -100),
+    LureIdx2 = case_when(setsize >= 3 ~ 0,
+                         TRUE ~ -100),
+    LureIdx3 = case_when(setsize >= 4 ~ 0,
+                         TRUE ~ -100),
+    LureIdx4 = case_when(setsize >= 5 ~ 0,
+                         TRUE ~ -100),
+    LureIdx5 = case_when(setsize >= 6 ~ 0,
+                         TRUE ~ -100),
+    Pos_Lure1 = case_when(is.na(Pos_Lure1) ~ 0,
+                          TRUE ~ Pos_Lure1),
+    Pos_Lure2 = case_when(is.na(Pos_Lure2) ~ 0,
+                          TRUE ~ Pos_Lure2),
+    Pos_Lure3 = case_when(is.na(Pos_Lure3) ~ 0,
+                          TRUE ~ Pos_Lure3),
+    Pos_Lure4 = case_when(is.na(Pos_Lure4) ~ 0,
+                          TRUE ~ Pos_Lure4),
+    Pos_Lure5 = case_when(is.na(Pos_Lure5) ~ 0,
+                          TRUE ~ Pos_Lure5),
+    setsize = as.factor(setsize),) %>% 
   select(subID,trial,setsize,RespErr,
          Pos_Lure1, Pos_Lure2, Pos_Lure3, Pos_Lure4, Pos_Lure5,
          LureIdx1, LureIdx2, LureIdx3, LureIdx4, LureIdx5)
@@ -71,7 +71,7 @@ data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>%
 
 
 # have a look at the data and included variables
-head(data_ZL2008)
+head(data_Bays2009)
 
 # load custom functions
 file.sources = list.files(path = here("functions"), 
@@ -117,14 +117,14 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             nlf(kappa5 ~ kappa),     # non-target
                             nlf(kappa6 ~ kappa),     # non-target
                             # kappa for guessing distribution will be fixed using priors
-                            kappa7 ~ 1,              # uniform  
+                            kappa7 ~ 1,             # uniform  
                             # specify mixing distributions for distinct item categories
                             nlf(theta1 ~ thetat),   # p_mem
-                            nlf(theta2 ~ LureIdx1 + thetant),  # p_intrusion
-                            nlf(theta3 ~ LureIdx2 + thetant),  # p_intrusion
-                            nlf(theta4 ~ LureIdx3 + thetant),  # p_intrusion
-                            nlf(theta5 ~ LureIdx4 + thetant),  # p_intrusion
-                            nlf(theta6 ~ LureIdx5 + thetant),  # p_intrusion
+                            theta2 ~ 0 + setsize,  # p_intrusion
+                            theta3 ~ 0 + setsize,  # p_intrusion
+                            theta4 ~ 0 + setsize,  # p_intrusion
+                            theta5 ~ 0 + setsize,  # p_intrusion
+                            theta6 ~ 0 + setsize,  # p_intrusion
                             # target & guessing distribution will be centered using priors
                             mu1 ~ 1, # fixed intercept constrained using priors
                             mu7 ~ 1, # fixed intercept constrained using priors
@@ -135,16 +135,16 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             nlf(mu5 ~ Pos_Lure4),           # center non-target
                             nlf(mu6 ~ Pos_Lure5),           # center non-target
                             # now predict parameters of interest
-                            kappa ~ 1,     # fixed intercept for precision of memory distributions
+                            kappa ~ 0 + setsize,     # fixed intercept for precision of memory distributions
                             thetat ~ 0 + setsize,    # fixed intercept for p_mem
-                            thetant ~ 0 + setsize,   # fixed intercept for p_intrusion
-                            #thetag ~ 1,    # fixed intercept for p_guess
+                            # thetant ~ 0 + setsize,   # fixed intercept for p_intrusion
+                            # thetag ~ 1,    # fixed intercept for p_guess
                             # for brms to process this formula correclty, set non-linear to TRUE
                             nl = TRUE)
 
 
 # check default priors
-get_prior(Bays_mixModel_formula, data_ZL2008, Bays_mixModel)
+get_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
 
 # constrain priors to identify the model
 Bays_mixModel_priors <- 
@@ -154,19 +154,119 @@ Bays_mixModel_priors <-
   # next, we set the guessing distribution to be uniform, kappa -> 0
   prior(constant(-100), class = Intercept, dpar = "kappa7") +
   # next, we set reasonable priors for the to be estimated distributions
-  prior(normal(5.0, 0.8), class = b, coef = "Intercept", nlpar = "kappa") +
+  prior(normal(5.0, 0.8), class = b, nlpar = "kappa") +
   prior(logistic(0, 1), class = b, nlpar = "thetat") +
-  prior(logistic(0, 1), class = b, nlpar = "thetant") 
+  # prior(logistic(0, 1), class = b, nlpar = "thetant") +
+  prior(constant(-100), class = b, dpar = "theta2", coef = "setsize1") +
+  prior(constant(-100), class = b, dpar = "theta3", coef = "setsize1") +
+  prior(constant(-100), class = b, dpar = "theta4", coef = "setsize1") +
+  prior(constant(-100), class = b, dpar = "theta5", coef = "setsize1") +
+  prior(constant(-100), class = b, dpar = "theta6", coef = "setsize1") +
+  prior(constant(-100), class = b, dpar = "theta3", coef = "setsize2") +
+  prior(constant(-100), class = b, dpar = "theta4", coef = "setsize2") +
+  prior(constant(-100), class = b, dpar = "theta5", coef = "setsize2") +
+  prior(constant(-100), class = b, dpar = "theta6", coef = "setsize2") +
+  prior(constant(-100), class = b, dpar = "theta5", coef = "setsize4") +
+  prior(constant(-100), class = b, dpar = "theta6", coef = "setsize4") 
+
 
 
 fit_Bays_mixMod <- brm(formula = Bays_mixModel_formula, 
-                       data = data_ZL2008, 
+                       data = data_Bays2009, 
                        family = Bays_mixModel, 
                        prior = Bays_mixModel_priors, 
-                       iter = 2000)
+                       iter = 100)
 
-exp(fixef(fit_Bays_mixMod)['kappa_Intercept','Estimate'])
 
-exp(fixef(fit_Bays_mixMod)['thetat_Intercept','Estimate'])/(exp(fixef(fit_Bays_mixMod)['thetat_Intercept','Estimate']) + 4*exp(fixef(fit_Bays_mixMod)['thetant_Intercept','Estimate']) + 1)
-4*exp(fixef(fit_Bays_mixMod)['thetant_Intercept','Estimate'])/(exp(fixef(fit_Bays_mixMod)['thetat_Intercept','Estimate']) + 4*exp(fixef(fit_Bays_mixMod)['thetant_Intercept','Estimate'])+1)
-1/(exp(fixef(fit_Bays_mixMod)['thetat_Intercept','Estimate'])+ 4 * exp(fixef(fit_Bays_mixMod)['thetant_Intercept','Estimate']) + 1)
+# extract fixed effects
+fixef_Bays <- fixef(fit_Bays_mixMod)
+
+kappa_cols <- grepl("kappa",rownames(fixef_Bays))
+
+# extract kappa estimates
+kappa_fixedFX <- fixef_Bays[kappa_cols,]
+
+# convert kappa estimates to absolute scale (radians)
+kappa_fixedFX <- exp(kappa_fixedFX)
+
+df_kappa_plot <- as.data.frame(kappa_fixedFX) %>% 
+  dplyr::mutate(
+    # convert kappa to the standard deviation in radians
+    sd_rad = sqrt(1/Estimate),
+    sd_rad_UL = sqrt(1/Q2.5),  # lower precision is higher s.d. 
+    sd_rad_LL = sqrt(1/Q97.5), # higher precision is lower s.d.
+    # convert standard deviation in radians to degrees
+    sd_deg = sd_rad / pi * 180,
+    sd_deg_UL = sd_rad_UL / pi * 180,
+    sd_deg_LL = sd_rad_LL / pi * 180,
+  )
+
+# compute pMem
+pMem_s1 <- exp(fixef_Bays["thetat_setsize1","Estimate"]) / (
+  exp(fixef_Bays["thetat_setsize1","Estimate"]) + exp(0)
+)
+
+pMem_s2 <- exp(fixef_Bays["thetat_setsize2","Estimate"]) / (
+  exp(fixef_Bays["thetat_setsize2","Estimate"]) +
+    1*exp(fixef_Bays["thetant_setsize2","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pMem_s4 <- exp(fixef_Bays["thetat_setsize4","Estimate"]) / (
+  exp(fixef_Bays["thetat_setsize4","Estimate"]) +
+    2*exp(fixef_Bays["thetant_setsize4","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pMem_s6 <- exp(fixef_Bays["thetat_setsize6","Estimate"]) / (
+  exp(fixef_Bays["thetat_setsize6","Estimate"]) +
+    5*exp(fixef_Bays["thetant_setsize6","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+# compute pSwap
+pSwap_s2 <- (1*exp(fixef_Bays["thetant_setsize2","Estimate"])) / (
+  exp(fixef_Bays["thetat_setsize2","Estimate"]) +
+    1*exp(fixef_Bays["thetant_setsize2","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pSwap_s4 <- (2*exp(fixef_Bays["thetant_setsize4","Estimate"])) / (
+  exp(fixef_Bays["thetat_setsize4","Estimate"]) +
+    2*exp(fixef_Bays["thetant_setsize4","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pSwap_s6 <- (5*exp(fixef_Bays["thetant_setsize6","Estimate"])) / (
+  exp(fixef_Bays["thetat_setsize6","Estimate"]) +
+    5*exp(fixef_Bays["thetant_setsize6","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+# compute pGuess
+pGuess_s1 <- exp(0) / (
+  exp(fixef_Bays["thetat_setsize1","Estimate"]) + exp(0)
+)
+
+pGuess_s2 <- exp(0) / (
+  exp(fixef_Bays["thetat_setsize2","Estimate"]) +
+    1*exp(fixef_Bays["thetant_setsize2","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pGuess_s4 <- exp(0) / (
+  exp(fixef_Bays["thetat_setsize4","Estimate"]) +
+    2*exp(fixef_Bays["thetant_setsize4","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+pGuess_s6 <- exp(0) / (
+  exp(fixef_Bays["thetat_setsize6","Estimate"]) +
+    5*exp(fixef_Bays["thetant_setsize6","Estimate"]) +
+    exp(0) # guessing prob
+)
+
+sum(pMem_s1,pGuess_s1)
+sum(pMem_s2,pGuess_s2,pSwap_s2)
+sum(pMem_s4,pGuess_s4,pSwap_s4)
+sum(pMem_s6,pGuess_s6,pSwap_s6)

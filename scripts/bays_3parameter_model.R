@@ -89,14 +89,13 @@ bf_mixture1 <- bf(y ~ 1,
                   nlf(kappa4 ~ kappa),     # non-target
                   nlf(kappa5 ~ kappa),     # non-target
                   # kappa for guessing distribution will be fixed using priors
-                  kappa6 ~ 1,              # uniform  
+                  kappa6 ~ 1,         # uniform  
                   # specify mixing distributions for distinct item categories
-                  nlf(theta1 ~ theta_t),   # p_mem
-                  nlf(theta2 ~ theta_nt),  # p_intrusion
-                  nlf(theta3 ~ theta_nt),  # p_intrusion
-                  nlf(theta4 ~ theta_nt),  # p_intrusion
-                  nlf(theta5 ~ theta_nt),  # p_intrusion
-                  nlf(theta6 ~ theta_g),   # p_guess
+                  nlf(theta1 ~ thetat),   # p_mem
+                  nlf(theta2 ~ thetant),  # p_intrusion
+                  nlf(theta3 ~ thetant),  # p_intrusion
+                  nlf(theta4 ~ thetant),  # p_intrusion
+                  nlf(theta5 ~ thetant),  # p_intrusion
                   # target & guessing distribution will be centered using priors
                   mu1 ~ 1, # fixed intercept constrained using priors
                   mu6 ~ 1, # fixed intercept constrained using priors
@@ -107,9 +106,8 @@ bf_mixture1 <- bf(y ~ 1,
                   nlf(mu5 ~ V5),           # center non-target
                   # now predict parameters of interest
                   kappa ~ 1,     # fixed intercept for precision of memory distributions
-                  theta_t ~ 1    # fixed intercept for p_mem
-                  theta_nt ~ 1,  # fixed intercept for p_intrusion
-                  theta_g ~ 1,   # fixed intercept for p_guess
+                  thetat ~ 1    # fixed intercept for p_mem
+                  thetant ~ 1,  # fixed intercept for p_intrusion
                   # for brms to process this formula correclty, set non-linear to TRUE
                   nl = TRUE)
 
@@ -129,7 +127,6 @@ mix_priors1 <-
   prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_t") +
   prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_nt") +
   prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_g") 
-
 
 
 fit1 <- brm(bf_mixture1, dat, mix_vonMises1, mix_priors1, iter = 2000)
