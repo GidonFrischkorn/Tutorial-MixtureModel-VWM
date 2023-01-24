@@ -162,6 +162,10 @@ mean(mle_est$convergence == 0)
 And now, we can check how well the individual participant paramters have been recovered. We plot the estimated parameters (y-axis) vs the true generating parameters (x-axis):
 
 ```{r, fig.width=7, fig.height=3.25}
+r_kappa_A <- round(cor.test(filter(true_pars, condition=="A")$kappa, filter(mle_est, condition=="A")$kappa)$est,2)
+r_pmem_A <- round(cor.test(filter(true_pars, condition=="A")$pmem, filter(mle_est, condition=="A")$pmem)$est,2)
+r_kappa_B <- round(cor.test(filter(true_pars, condition=="B")$kappa, filter(mle_est, condition=="B")$kappa)$est,2)
+r_pmem_B <- round(cor.test(filter(true_pars, condition=="B")$pmem, filter(mle_est, condition=="B")$pmem)$est,2)
 r_kappa <- round(cor.test(true_pars$kappa, mle_est$kappa)$est,2)
 r_pmem <- round(cor.test(true_pars$pmem, mle_est$pmem)$est,2)
 
@@ -172,7 +176,9 @@ p1 <- left_join(true_pars, mle_est, by=c('id','condition')) %>%
   xlab('True parameter') +
   ylab('MLE estimate') +
   theme_bw() +
-  annotate('text', x=15, y=40, label=paste0('r(40) = ', r_kappa)) +
+  annotate('text', x=15, y=42, label=paste0('r_overall(40) = ', r_kappa)) +
+  annotate('text', x=15, y=38, label=paste0('r_A(40) = ', r_kappa_A), color="#F8766D") +
+  annotate('text', x=15, y=34, label=paste0('r_B(40) = ', r_kappa_B), color="#00BFC4") +
   geom_abline(intercept=0, slope=1) +
   theme(legend.position="")
 
@@ -183,7 +189,9 @@ p2 <- left_join(true_pars, mle_est, by=c('id','condition')) %>%
   xlab('True parameter') +
   ylab('MLE estimate') +
   theme_bw() +
-  annotate('text', x=0.4, y=0.8, label=paste0('r(40) = ', r_pmem)) +
+  annotate('text', x=0.4, y=0.9, label=paste0('r_overall(40) = ', r_pmem)) +
+  annotate('text', x=0.4, y=0.83, label=paste0('r_A(40) = ', r_pmem_A), color="#F8766D") +
+  annotate('text', x=0.4, y=0.76, label=paste0('r_B(40) = ', r_pmem_B), color="#00BFC4") +
   geom_abline(intercept=0, slope=1)
 
 p1+p2
@@ -248,6 +256,10 @@ brms_est <- data.frame(id = rep(1:N, 2),
 As with the MLE model before, we can now check how well the individual participant parameters have been recovered. We plot the estimated parameters (y-axis) vs the true generating parameters (x-axis):
 
 ```{r, fig.width=7, fig.height=3.25}
+r_kappa_A <- round(cor.test(filter(true_pars, condition=="A")$kappa, filter(brms_est, condition=="A")$kappa)$est,2)
+r_pmem_A <- round(cor.test(filter(true_pars, condition=="A")$pmem, filter(brms_est, condition=="A")$pmem)$est,2)
+r_kappa_B <- round(cor.test(filter(true_pars, condition=="B")$kappa, filter(brms_est, condition=="B")$kappa)$est,2)
+r_pmem_B <- round(cor.test(filter(true_pars, condition=="B")$pmem, filter(brms_est, condition=="B")$pmem)$est,2)
 r_kappa <- round(cor.test(true_pars$kappa, brms_est$kappa)$est,2)
 r_pmem <- round(cor.test(true_pars$pmem, brms_est$pmem)$est,2)
 
@@ -258,7 +270,9 @@ p3 <- left_join(true_pars, brms_est, by=c('id','condition')) %>%
   xlab('True parameter') +
   ylab('BRMS estimate') +
   theme_bw() +
-  annotate('text', x=15, y=40, label=paste0('r(40) = ', r_kappa)) +
+  annotate('text', x=15, y=42, label=paste0('r_overall(40) = ', r_kappa)) +
+  annotate('text', x=15, y=38, label=paste0('r_A(40) = ', r_kappa_A), color="#F8766D") +
+  annotate('text', x=15, y=34, label=paste0('r_B(40) = ', r_kappa_B), color="#00BFC4") +
   geom_abline(intercept=0, slope=1) +
   theme(legend.position="")
 
@@ -269,7 +283,9 @@ p4 <- left_join(true_pars, brms_est, by=c('id','condition')) %>%
   xlab('True parameter') +
   ylab('BRMS estimate') +
   theme_bw() +
-  annotate('text', x=0.4, y=0.8, label=paste0('r(40) = ', r_pmem)) +
+  annotate('text', x=0.4, y=0.9, label=paste0('r_overall(40) = ', r_pmem)) +
+  annotate('text', x=0.4, y=0.83, label=paste0('r_A(40) = ', r_pmem_A), color="#F8766D") +
+  annotate('text', x=0.4, y=0.76, label=paste0('r_B(40) = ', r_pmem_B), color="#00BFC4") +
   geom_abline(intercept=0, slope=1)
 
 p3+p4

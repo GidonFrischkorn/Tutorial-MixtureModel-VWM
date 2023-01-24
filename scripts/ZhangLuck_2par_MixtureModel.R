@@ -67,7 +67,7 @@ ZL_mixFamily <- mixture(von_mises,von_mises, order =  "none")
 #' to zero. Additionally, we will use priors to fix the precision (kappa) of the
 #' second von Mises to be zero (at least practically zero). 
 ZL_mixFormula <- bf(RespErr ~ 1,    # Initializing the dependent variable
-                    mu2 ~ 1,
+                    # mu2 ~ 1,
                     # estimating fixed intercept & random intercept for kappa of the first von Mises
                     kappa1 ~ 1,
                     kappa2 ~ 1,
@@ -103,7 +103,7 @@ if (!file.exists(here("output/fit_ZL2008_mixModel.RData"))) {
   #' This is done for both kappa1, the precision of the memory distribution,
   #' and theta1, the mixing distribution, essentially estimating pMem.
   ZL_mixFormula <- bf(RespErr ~ 1,    # Initializing the dependent variable
-                      mu2 ~ 1,
+                      # mu2 ~ 1,
                       # estimating fixed intercept & random intercept for kappa of the first von Mises
                       kappa1 ~ 0 + setsize + (0 + setsize || subID), 
                       kappa2 ~ 1,
