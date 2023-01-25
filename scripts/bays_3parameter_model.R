@@ -1,3 +1,11 @@
+#' This is the tutorial script for setting up the 3-parameter Bays et al (2009) model
+#' 
+#' 
+#' In this script, you will see:
+#'  1) how the model is set up using the brms package, 
+#'  2) how a simple version of the model is estimates, and 
+#'  3) how the model can be evaluated and results extracted and plotted.
+
 rm(list = ls())
 
 library(tidyverse)
@@ -7,7 +15,21 @@ library(lme4)
 library(brms)
 library(here)
 
-options(mc.cores = parallel::detectCores())
+# Set up parallel sampling of mcmc chains
+options(mc.cores =  parallel::detectCores())
+
+# specify the number of samples to run for warm up & after warm up
+warmup_samples <- 2000
+postwarmup_samples <- 2000
+
+# specify the number of chains
+nChains <- 4
+
+#' if the number of user defined chains is larger than the number of cores 
+#' on the system than estimate as many chains as there are cores on the system
+if (nChains >  parallel::detectCores()) {
+  nChains <-  parallel::detectCores()
+}
 
 mean_se2 <- function (x, mult = 1.96) 
 {
@@ -57,7 +79,7 @@ fit_mixture3 <- function(dat, init_values=list(p_correct=3, p_other=1, sigma=9))
 }
 
 # load data and transform to radians
-dat <- read.csv(here('data/popov_so_reder_exp1.csv'))
+dat <- read.csv(here('data/popov_so_reder_exp2and3.csv'))
 dat$y <- dat$y * pi /180
 dat$V1 <- dat$V1 * pi /180
 dat$V2 <- dat$V2 * pi /180
@@ -65,7 +87,11 @@ dat$V4 <- dat$V4 * pi /180
 dat$V5 <- dat$V5 * pi /180
 
 # fit MLE model
-fit_mixture3(dat)
+mle_fit <- dat %>% 
+  group_by(subject, duration) %>% 
+  do({fit_mixture3(.)})
+
+lme4::lmer(p_correct ~ duration + (1|subject), data=mle_fit) %>% summary()
 
 #############################################################################!
 # BRMS                                                                   ####
@@ -105,9 +131,9 @@ bf_mixture1 <- bf(y ~ 1,
                   nlf(mu4 ~ V4),           # center non-target
                   nlf(mu5 ~ V5),           # center non-target
                   # now predict parameters of interest
-                  kappa ~ 1,     # fixed intercept for precision of memory distributions
-                  thetat ~ 1    # fixed intercept for p_mem
-                  thetant ~ 1,  # fixed intercept for p_intrusion
+                  kappa ~ duration + (duration || subject),     # fixed intercept for precision of memory distributions
+                  thetat ~ duration + (duration || subject),    # fixed intercept for p_mem
+                  thetant ~ duration + (duration || subject),  # fixed intercept for p_intrusion
                   # for brms to process this formula correclty, set non-linear to TRUE
                   nl = TRUE)
 
@@ -121,15 +147,15 @@ mix_priors1 <-
   prior(constant(0), class = Intercept, dpar = "mu1") +
   prior(constant(0), class = Intercept, dpar = "mu6") +
   # next, we set the guessing distribution to be uniform, kappa -> 0
-  prior(constant(-100), class = Intercept, dpar = "kappa6") +
+  prior(constant(-100), class = Intercept, dpar = "kappa6")
   # next, we set reasonable priors for the to be estimated distributions
-  prior(normal(5.0, 0.8), class = b, coef = "Intercept", nlpar = "kappa") +
-  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_t") +
-  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_nt") +
-  prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_g") 
+  # prior(normal(5.0, 0.8), class = b, coef = "Intercept", nlpar = "kappa")
+  # prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_t") +
+  # prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_nt") +
+  # prior(logistic(0, 1), class = b, coef = "Intercept", nlpar = "theta_g") 
 
 
-fit1 <- brm(bf_mixture1, dat, mix_vonMises1, mix_priors1, iter = 2000)
+fit1 <- brm(bf_mixture1, dat, mix_vonMises1, mix_priors1, iter = 100, chains=nChains)
 
 exp(fixef(fit1)['kappa_Intercept','Estimate'])
 
