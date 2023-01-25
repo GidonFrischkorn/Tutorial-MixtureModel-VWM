@@ -207,7 +207,7 @@ results_ZL2008 <- data.frame(
 kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
                      aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(5,45)) +
-  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "lightgrey",
+  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                    alpha = 0.7, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
                size = 0.3, linewidth = 0.8,
@@ -227,7 +227,7 @@ kappa_plot
 pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
                     aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(0.2,1.05)) +
-  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "lightgrey",
+  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                    alpha = 0.7, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
                size = 0.3, linewidth = 0.8,
