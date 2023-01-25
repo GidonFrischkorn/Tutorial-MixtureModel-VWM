@@ -14,10 +14,7 @@
 rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
-# load required packages
-library(brms)       # for estimating the mixture model
-library(tidyverse)  # for data wrangling & ploting
-library(here)       # use of relative file paths
+pacman::p_load(here,brms,tidyverse,tidybayes,patchwork, gghalves)
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -27,7 +24,7 @@ warmup_samples <- 2000
 postwarmup_samples <- 2000
 
 # specify the number of chains
-nChains <- 5
+nChains <- 6
 
 #' if the number of user defined chains is larger than the number of cores 
 #' on the system than estimate as many chains as there are cores on the system
@@ -36,7 +33,7 @@ if (nChains >  parallel::detectCores()) {
 }
 
 # set brms controls to prevent divergent transitions & improve convergence
-adapt_delta <- .95
+adapt_delta <- .99
 max_treedepth <- 10
 
 # load data file
@@ -51,8 +48,7 @@ data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>%
 # have a look at the data and included variables
 head(data_ZL2008)
 
-# load geom_flar_violin function for plotting
-source(here("scripts","geom_half_violin.R"))
+
 
 ###############################################################################!
 # 1) Model Setup ---------------------------------------------------------------
