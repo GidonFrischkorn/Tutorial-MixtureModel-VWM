@@ -224,8 +224,8 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
                      aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
   coord_cartesian(ylim = c(5,40)) +
-  geom_flat_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)),
-                   adjust = 1.5, trim = FALSE, alpha = 0.7, colour = NA, show.legend = FALSE) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
+                   adjust = 1.5, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE) +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
@@ -247,8 +247,8 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
   facet_grid(. ~ ageGroup) +
   theme(legend.position = c(0.25, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +
-  geom_flat_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)),
-                   adjust = 1.5, trim = FALSE, alpha = 0.7, colour = NA, show.legend = FALSE) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
+                   adjust = 1.5, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE) +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +

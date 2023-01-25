@@ -48,8 +48,6 @@ data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>%
 # have a look at the data and included variables
 head(data_ZL2008)
 
-
-
 ###############################################################################!
 # 1) Model Setup ---------------------------------------------------------------
 ###############################################################################!
@@ -92,7 +90,7 @@ ZL_mixPriors <-
 ###############################################################################!
 
 # fit mixture model if there is not already a results file stored
-if (!file.exists(here("output/fit_ZL2008_mixModel.RData"))) {
+if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
   #' To reproduce the results from Zhang & Luck (2008), we include setsize
   #' as a within subject predictor.
   #' Additionally we specify the formula so that we directly get the estimates
@@ -128,11 +126,12 @@ if (!file.exists(here("output/fit_ZL2008_mixModel.RData"))) {
   
   # save results into file
   save(fit_ZL_mixModel, 
-       file = here("output/fit_ZL2008_mixModel.RData"))
+       file = here("output/fit_E1_ZL2008.RData"),
+       compress = "xz")
   
 } else {
   # load results file
-  load(file = here("output/fit_ZL2008_mixModel.RData"))
+  load(file = here("output/fit_E1_ZL2008.RData"))
 }
 
 ###############################################################################!
@@ -184,57 +183,67 @@ clean_plot <- theme(panel.grid.major = element_blank(),
                     line = element_line(size = 1),
                     axis.ticks = element_line(size = 1))
 
-# prepare kappa estimates for plotting
-df_kappa_plot <- as.data.frame(kappa_fixedFX) %>% 
-  dplyr::mutate(
-    # convert kappa to the standard deviation in radians
-    sd_rad = sqrt(1/Estimate),
-    sd_rad_UL = sqrt(1/Q2.5),  # lower precision is higher s.d. 
-    sd_rad_LL = sqrt(1/Q97.5), # higher precision is lower s.d.
-    # convert standard deviation in radians to degrees
-    sd_deg = sd_rad / pi * 180,
-    sd_deg_UL = sd_rad_UL / pi * 180,
-    sd_deg_LL = sd_rad_LL / pi * 180,
-    # add set size variable
-    setsize = levels(data_ZL2008$setsize),
-    ZL_results = c(13.9,19.4,21.9,22.3)
-  )
+fixedFX_draws <- fit_ZL_mixModel %>% 
+  tidy_draws() %>%
+  select(starts_with("b_"),.chain,.iteration,.draw) %>% 
+  pivot_longer(cols = starts_with("b_"),
+               names_to = "modelPar",
+               values_to = "postSample") %>% 
+  mutate(par = str_split_i(modelPar,"_",2),
+         cond = str_split_i(modelPar,"_",3)) %>% 
+  select(-modelPar) %>% 
+  filter(par == "kappa1" | par == "theta1") %>% 
+  mutate(postSample_abs = case_when(par == "kappa1" ~ (sqrt(1/exp(postSample))/pi) * 180,
+                                    par == "theta1" ~ inv_logit_scaled(postSample)),
+         cond = str_remove_all(cond,"setsize"))
 
-# plot s.d. estimates over set sizes
-kappa_plot <- ggplot(data = df_kappa_plot,
-                     aes(x = setsize, y = sd_deg, ymin = sd_deg_LL, ymax = sd_deg_UL)) +
-  geom_pointrange() +
-  geom_point(aes(y = ZL_results), shape = 23, color = "darkred", fill = "darkred", 
-             position = position_nudge(x = 0.05)) +
-  labs(x = "Set size", y = "s.d.") +
-  coord_cartesian(ylim = c(0,40)) +
+results_ZL2008 <- data.frame(
+  cond = as.character(c(1,2,3,6)),
+  pMem = c(.99,.95,.83,.38),
+  sdMen = c(13.9,19.4,21.9,22.3)
+)
+
+# plot kappa results
+kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
+                     aes(x = cond, y = postSample_abs)) +
+  coord_cartesian(ylim = c(5,45)) +
+  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "lightgrey",
+                   alpha = 0.7, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  geom_point(data = results_ZL2008,
+             aes(y = sdMen, x = cond), color = "black",
+             shape = "diamond", size = 2.5,
+             position = position_nudge(x = .1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Memory imprecision (SD)", title = "B") +
+  #guides(color = "none", size = FALSE) +
   clean_plot
-
-# show plot for precision results
 kappa_plot
 
-# prepare pMem estimates for ploting
-df_pMem_plot <- as.data.frame(p_Mem_fixedFX) %>% 
-  dplyr::mutate(setsize = levels(data_ZL2008$setsize),
-                ZL_results = c(.99, .95, .83,.38))
-
-# plot pMem estimates across setsize
-pMem_plot <- ggplot(data = df_pMem_plot,
-                    aes(x = setsize, y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
-  geom_pointrange() + 
-  geom_point(aes(y = ZL_results), shape = 23, color = "darkred", fill = "darkred", 
-             position = position_nudge(x = 0.05)) +
-  labs(x = "Set Size", y = expression(P[mem])) +
-  coord_cartesian(ylim = c(0,1)) +
+# plot pMem results
+pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
+                    aes(x = cond, y = postSample_abs)) +
+  coord_cartesian(ylim = c(0.2,1.05)) +
+  geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "lightgrey",
+                   alpha = 0.7, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  geom_point(data = results_ZL2008,
+             aes(y = pMem, x = cond), color = "black",
+             shape = "diamond", size = 2.5,
+             position = position_nudge(x = .1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = expression(P[mem]), title = "B") +
+  #guides(color = "none", size = FALSE) +
   clean_plot
-
-# show plot for pMem results
 pMem_plot
 
-# export plots
-
-# the patchwork pacakge allows to easily joint plots
-library(patchwork)
+# patch plots together
 joint_plot <- (pMem_plot | kappa_plot)
 
 # show joint plot
@@ -243,14 +252,14 @@ joint_plot
 # save plots with high resolution
 ggsave(
   filename = here("figures/plot_kappaEst_ZL2008.jpeg"),
-  plot = kappa_plot, width = 4, height = 4
+  plot = kappa_plot, width = 6, height = 6
 )
 ggsave(
   filename = here("figures/plot_pmemEst_ZL2008.jpeg"),
-  plot = pMem_plot, width = 4, height = 4
+  plot = pMem_plot, width = 6, height = 6
 )
 
 ggsave(
   filename = here("figures/plot_jointRes_ZL2008.jpeg"),
-  plot = joint_plot, width = 4*2, height = 4
+  plot = joint_plot, width = 6*2, height = 6
 )
