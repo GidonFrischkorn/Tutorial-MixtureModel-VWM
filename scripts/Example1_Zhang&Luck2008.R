@@ -180,8 +180,8 @@ clean_plot <- theme(panel.grid.major = element_blank(),
                     axis.line.y = element_line(color = 'black'),
                     legend.key = element_rect(fill = 'white'),
                     text = element_text(size = 15),
-                    line = element_line(size = 1),
-                    axis.ticks = element_line(size = 1))
+                    line = element_line(linewidth = 1),
+                    axis.ticks = element_line(linewidth = 1))
 
 fixedFX_draws <- fit_ZL_mixModel %>% 
   tidy_draws() %>%
@@ -208,7 +208,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
                      aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(5,45)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
-                   alpha = 0.7, scale = "width") +
+                   alpha = 0.9, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
@@ -228,7 +228,7 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
                     aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(0.2,1.05)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
-                   alpha = 0.7, scale = "width") +
+                   alpha = 0.9, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +

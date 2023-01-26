@@ -141,6 +141,9 @@ if (!file.exists(here("output","fit_LS2018_mixModel.RData"))) {
   load(file = here("output","fit_LS2018_mixModel.RData"))
 }
 
+hypothesis(fit_LS2018_mixModel,
+           c(hyp1 = "kappa1_ageGroup_facYounger:RI_facshort:cueCond_facNo >
+             kappa1_ageGroup_facOld:RI_facshort:cueCond_facNo"))
 
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
@@ -225,7 +228,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
   facet_grid(. ~ ageGroup) +
   coord_cartesian(ylim = c(5,40)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
-                   adjust = 1.5, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE) +
+                   adjust = 1, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
@@ -237,7 +240,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Retention Interval", y = "Memory imprecision (SD)", fill = "No. of Cues", color = "No. of Cues",
        title = "B") +
-  guides(color = "none", size = FALSE) +
+  #guides(color = "none", size = FALSE) +
   clean_plot
 kappa_plot
 
@@ -248,7 +251,7 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
   theme(legend.position = c(0.25, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
-                   adjust = 1.5, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE) +
+                   adjust = 1, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
