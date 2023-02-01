@@ -90,7 +90,6 @@ if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
     formula = ZL_mixFormula_bmm, # specify formula for mixture model
     data    = data_ZL2008,   # specify data used to estimate the mixture model
     model_type = "2p", # select the two-parameter model for fitting
-    setsize = "setsize", # specify the setsize variable
     
     # save all potentially relevant information
     sample_prior = TRUE,
