@@ -3,9 +3,12 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-library(brms)
 library(ggplot2)
 library(here)
+
+# load function to clean up plots
+source(here("functions","clean_plot.R"))
+
 
 # settings for mixture model plot
 mus <- c(0,1.7,0)
@@ -16,6 +19,7 @@ colors  <- c("firebrick", "chartreuse4", "dodgerblue4","black")
 # weighted density function for the vonMises distribution
 weighted_vonMises_density <- function(x, mu, kappa, log = F, weight = 1){
   weighted_vonMises_density <- dvon_mises(x = x,mu = mu , kappa = kappa, log = log) * weight
+  return(weighted_vonMises_density)
 }
 
 # sum of three von Mises densities for plotting the mixture density
