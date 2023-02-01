@@ -177,7 +177,7 @@ p_Mem_fixedFX <- gtools::inv.logit(theta_fixedFX)
 kappa_fixedFX
 p_Mem_fixedFX
 
- ## 3.3) plot parameter estimates -----------------------------------------------
+## 3.3) plot parameter estimates -----------------------------------------------
 results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                               header = T, sep = ",") %>% 
   filter(param != "catActive") %>% 
@@ -186,12 +186,8 @@ results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                            cueCond == "RetroCue" & RI == "short" ~ 1,
                            cueCond == "RetroCue" & RI == "long" ~ 2),
          ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Younger"))
+                              TRUE ~ "Young"))
   
-# source functions for clean plots and obtaining credibility intervals
-source(here("functions","clean_plot.R"))
-source(here("functions","mean_hdi.R"))
-
 # extract posterior draws for fixed effects on kappa & theta
 fixedFX_draws <- fit_LS2018_mixModel %>% 
   tidy_draws() %>%
@@ -200,16 +196,17 @@ fixedFX_draws <- fit_LS2018_mixModel %>%
                names_to = "modelPar",
                values_to = "postSample") %>% 
   mutate(par = str_split_i(modelPar,"_",2),
-         ageGroup = str_split_i(modelPar,"_",4),
-         RI = str_split_i(modelPar,"_",5),
-         RetroCue = str_split_i(modelPar,"_",6)) %>% 
-  select(-modelPar) %>% 
+         conds = str_split_i(modelPar,"_",3),
+         ageGroup = str_split_i(conds,":",1),
+         RI = str_split_i(conds,":",2),
+         RetroCue = str_split_i(conds,":",3),
+         ageGroup = str_remove(ageGroup,"ageGroup"),
+         RI = str_remove(RI,"RI"),
+         RetroCue = str_remove(RetroCue,"cueCond")) %>% 
+  select(-modelPar, -conds) %>% 
   filter(par == "kappa1" | par == "theta1") %>% 
   mutate(postSample_abs = case_when(par == "kappa1" ~ (sqrt(1/exp(postSample))/pi) * 180,
                                     par == "theta1" ~ inv_logit_scaled(postSample)),
-         ageGroup = str_remove_all(ageGroup,paste(c("fac",":RI"),collapse = "|")),
-         RI = str_remove_all(RI,paste(c("fac",":cueCond"),collapse = "|")),
-         RetroCue = str_remove_all(RetroCue,"fac"),
          nCues = case_when(RetroCue == "No" ~ 0,
                            RetroCue == "Retro" & RI == "short" ~ 1,
                            RetroCue == "Retro" & RI == "long" ~ 2))
@@ -218,10 +215,10 @@ fixedFX_draws <- fit_LS2018_mixModel %>%
 kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
                      aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
-  coord_cartesian(ylim = c(5,40)) +
-  gghalves::geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
-                   adjust = 1, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = tidybayes::mode_hdi,
+  coord_cartesian(ylim = c(5,50)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
   geom_point(data = results_LS_2018 %>% filter(param == "contSD"), 
@@ -243,7 +240,7 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
   theme(legend.position = c(0.25, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
-                   adjust = 1, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
+                   adjust = 1.2, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mean_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
