@@ -229,7 +229,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Retention Interval", y = "Memory imprecision (SD)", fill = "No. of Cues", color = "No. of Cues",
        title = "B") +
-  #guides(color = "none", size = FALSE) +
+  guides(color = "none") +
   clean_plot()
 kappa_plot
 

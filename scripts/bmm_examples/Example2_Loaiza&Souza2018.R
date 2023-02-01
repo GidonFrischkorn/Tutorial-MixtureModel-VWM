@@ -75,48 +75,39 @@ levels(wmData$cueCond) <- c("No","Retro")
 # 2) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
-#' First we specify a mixture of von Mises distributions.
-#' The first distribution is the memory distribution and
-#' the second distribution is the guessing
-LS_mixFamily <- mixture(von_mises,von_mises, order =  "none")
 
-#' Then, we set up the formula for the mixture model.
+#' set up the formula for the mixture model.
 #' Although, we do not want to estimate the mean of the two von Mises distributions,
 #' we have to initialize the formula to specify the dependent variable.
 #' Using priors (see step 3), we will constrain the means of both von Mises distributions
 #' to zero. Additionally, we will use priors to fix the precision (kappa) of the
 #' second von Mises to be zero (at least practically zero). 
-LS_mixFormula <- bf(dev_rad ~ 1,    # Initializing the dependent variable
-                    mu2 ~ 1,
-                    # estimating fixed intercept & random intercept for kappa of the first von Mises
-                    kappa1 ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)), 
-                    kappa2 ~ 1,
-                    # estimating fixed intercept & random intercept for the mixing proportion 
-                    # of the first vonMises (i.e., p_mem)
-                    theta1 ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)))
-
+LS_mixFormula_bmm <- bf(
+  # Initializing the dependent variable
+  dev_rad ~ 1,
+  
+  # estimating fixed intercept & random intercept for kappa of the first von Mises
+  kappa ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)), 
+  
+  # estimating fixed intercept & random intercept for the mixing proportion 
+  # of the target vonMises (i.e., p_mem)
+  thetat ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup))
+)
 
 # constrain parameters using priors
-LS_mixPriors <- 
-  # fix mean of the first von Mises to zero
-  prior(constant(0), class = Intercept, dpar = "mu1") +
-  # fix mean of the second von Mises to zero
-  prior(constant(0), class = Intercept, dpar = "mu2") +
-  # fix kappa of the second von Mises to (alomst) zero
-  prior(constant(-100), class = Intercept, dpar = "kappa2") +
-  prior(normal(0,0.5), class = "b", dpar = "theta1") +
+mixPriors <- prior(normal(0,0.5), class = "b", dpar = "theta1") +
   prior(normal(0,0.5), class = "b", dpar = "kappa1")
 
 # fit mixture model if there is not already a results file stored
 if (!file.exists(here("output","fit_E2_LS2018.RData"))) {
   # fit the mixture model using brms
-  fit_LS2018_mixModel <- brm(
+  fit_LS2018_mixModel <- fit_model(
     # include model information
-    formula = LS_mixFormula, # specify formula for mixture model
+    formula = LS_mixFormula_bmm, # specify formula for mixture model
     data    = wmData, # specify data used to estimate the mixture model
-    family  = LS_mixFamily, # call the defined mixture family
-    prior   = LS_mixPriors, # use the used defined priors,
-  
+    model_type = "2p",
+    prior   = mixPriors, # use the used defined priors,
+    
     # save settings
     sample_prior = TRUE,
     save_pars = save_pars(all = TRUE),
@@ -187,7 +178,7 @@ results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                            cueCond == "RetroCue" & RI == "long" ~ 2),
          ageGroup = case_when(BP_Group == "Old" ~ "Old",
                               TRUE ~ "Young"))
-  
+
 # extract posterior draws for fixed effects on kappa & theta
 fixedFX_draws <- fit_LS2018_mixModel %>% 
   tidy_draws() %>%
@@ -235,7 +226,7 @@ kappa_plot
 
 # plot pMem results
 pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
-                     aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
+                    aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
   theme(legend.position = c(0.25, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +

@@ -58,39 +58,24 @@ head(data_ZL2008)
 # 2) Model Setup ---------------------------------------------------------------
 ###############################################################################!
 
-#' First we specify a mixture of von Mises distributions.
-#' The first distribution is the memory distribution and
-#' the second distribution is the guessing
-ZL_mixFamily <- mixture(von_mises,von_mises, order =  "none")
-
 #' To reproduce the results from Zhang & Luck (2008), we include setsize
 #' as a within subject predictor.
 #' Additionally we specify the formula so that we directly get the estimates
 #' for each level of setsize: 0 + setsize
 #' Finally, we implement the hierarchical structure by allowing that the setsize
 #' effect varies over each subject: (0 + setsize || subID)
-#' This is done for both kappa1, the precision of the memory distribution,
-#' and theta1, the mixing distribution, essentially estimating pMem.
-ZL_mixFormula <- bf(RespErr ~ 1,    # Initializing the dependent variable
-                    # mu2 ~ 1,
-                    # estimating fixed intercept & random intercept for kappa of the first von Mises
-                    kappa1 ~ 0 + setsize + (0 + setsize || subID), 
-                    kappa2 ~ 1,
-                    # estimating fixed intercept & random intercept for the mixing proportion 
-                    # of the first vonMises (i.e., p_mem)
-                    theta1 ~ 0 + setsize + (0 + setsize || subID))
+#' This is done for both kappa, the precision of the memory distribution,
+#' and thetat, the mixing distribution for target responses, essentially estimating pMem.
+ZL_mixFormula_bmm <- bf(
+  # Initializing the dependent variable
+  RespErr ~ 1,   
+  # estimating fixed intercept & random intercept for kappa of the first von Mises
+  kappa ~ 0 + setsize + (0 + setsize || subID), 
+  # estimating fixed intercept & random intercept for the mixing proportion 
+  # for the memory/target distribution (i.e., p_mem)
+  thetat ~ 0 + setsize + (0 + setsize || subID)
+)
 
-# constrain parameters using priors
-ZL_mixPriors <- 
-  # fix mean of the first von Mises to zero
-  prior(constant(0), class = Intercept, dpar = "mu1") +
-  # fix mean of the second von Mises to zero
-  prior(constant(0), class = Intercept, dpar = "mu2") +
-  # fix kappa of the second von Mises to (alomst) zero
-  prior(constant(-100), class = Intercept, dpar = "kappa2") +
-  # additional priors for the parameters to be estimated
-  prior(normal(0,0.5), class = "b", dpar = "theta1") +
-  prior(normal(0,0.5), class = "b", dpar = "kappa1")
 
 ###############################################################################!
 # 3) Model estimation ----------------------------------------------------------
@@ -98,14 +83,14 @@ ZL_mixPriors <-
 
 # fit mixture model if there is not already a results file stored
 if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
-  # using the  model formula. the mixture family, and the mixture priors we can 
-  # now fit the mixture model using brms
-  fit_ZL_mixModel <- brm(
-    # include model information
-    formula = ZL_mixFormula, # specify formula for mixture model
+  # using the fit_model function, we pass the bmm formula for the mixture model
+  # prior specification and other constraints are taken care of within this function
+  # additionally any further arguments for brms can be passed as well
+  fit_ZL_mixModel <- fit_model(
+    formula = ZL_mixFormula_bmm, # specify formula for mixture model
     data    = data_ZL2008,   # specify data used to estimate the mixture model
-    family  = ZL_mixFamily,  # call the defined mixture family
-    prior   = ZL_mixPriors,  # use the used defined priors,
+    model_type = "2p", # select the two-parameter model for fitting
+    setsize = "setsize", # specify the setsize variable
     
     # save all potentially relevant information
     sample_prior = TRUE,
