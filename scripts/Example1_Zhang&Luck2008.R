@@ -20,8 +20,8 @@ pacman::p_load(here,brms,tidyverse,tidybayes,patchwork, gghalves)
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 2000
-postwarmup_samples <- 2000
+warmup_samples <- 3000
+postwarmup_samples <- 3000
 
 # specify the number of chains
 nChains <- 6
@@ -34,7 +34,7 @@ if (nChains >  parallel::detectCores()) {
 
 # set brms controls to prevent divergent transitions & improve convergence
 adapt_delta <- .99
-max_treedepth <- 10
+max_treedepth <- 12
 
 # load data file
 data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>% 
@@ -117,11 +117,18 @@ if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
     family  = ZL_mixFamily, # call the defined mixture family
     prior   = ZL_mixPriors, # use the used defined priors,
     
+    # save settings
+    sample_prior = TRUE,
+    save_pars = save_pars(all = TRUE),
+    
     # add brms settings
     warmup = warmup_samples,
     iter = warmup_samples + postwarmup_samples, 
     chains = nChains,
-    control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth)
+    
+    # control commands for the sampler
+    control = list(adapt_delta = adapt_delta, 
+                   max_treedepth = max_treedepth)
   )
   
   # save results into file

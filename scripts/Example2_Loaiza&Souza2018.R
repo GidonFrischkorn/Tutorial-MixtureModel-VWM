@@ -65,15 +65,15 @@ setwd(here())
 # convert the relevant predictors to factors and calculate the response error 
 # (i.e. deviation) into radians
 wmData <- wmData %>% 
-  mutate(ageGroup_fac = as.factor(ageGroup),
-         RI_fac = as.factor(retention),
-         cueCond_fac = as.factor(cueCondition),
+  mutate(ageGroup = as.factor(ageGroup),
+         RI = as.factor(retention),
+         cueCond = as.factor(cueCondition),
          dev_rad = deviation/180 * pi)
 
 # specify the levels of the experimental facctors
-levels(wmData$ageGroup_fac) <- c("Younger","Old")
-levels(wmData$RI_fac) <- c("short","long")
-levels(wmData$cueCond_fac) <- c("No","Retro")
+levels(wmData$ageGroup) <- c("Young","Old")
+levels(wmData$RI) <- c("short","long")
+levels(wmData$cueCond) <- c("No","Retro")
 
 ###############################################################################!
 # 2) Model estimation ----------------------------------------------------------
@@ -93,11 +93,11 @@ ZL_mixFamily <- mixture(von_mises,von_mises, order =  "none")
 ZL_mixFormula <- bf(dev_rad ~ 1,    # Initializing the dependent variable
                     mu2 ~ 1,
                     # estimating fixed intercept & random intercept for kappa of the first von Mises
-                    kappa1 ~ 0 + ageGroup_fac:RI_fac:cueCond_fac + (0 + RI_fac:cueCond_fac || gr(id, by = ageGroup_fac)), 
+                    kappa1 ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)), 
                     kappa2 ~ 1,
                     # estimating fixed intercept & random intercept for the mixing proportion 
                     # of the first vonMises (i.e., p_mem)
-                    theta1 ~ 0 + ageGroup_fac:RI_fac:cueCond_fac + (0 + RI_fac:cueCond_fac || gr(id, by = ageGroup_fac)))
+                    theta1 ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)))
 
 #' have a look at the priors to evaluate the parametrization of the model we set up
 get_prior(formula = ZL_mixFormula,
@@ -111,7 +111,9 @@ ZL_mixPriors <-
   # fix mean of the second von Mises to zero
   prior(constant(0), class = Intercept, dpar = "mu2") +
   # fix kappa of the second von Mises to (alomst) zero
-  prior(constant(-100), class = Intercept, dpar = "kappa2")
+  prior(constant(-100), class = Intercept, dpar = "kappa2")+
+  prior(normal(0,0.5), class = "b", dpar = "theta1") +
+  prior(normal(0,0.5), class = "b", dpar = "kappa1")
 
 # fit mixture model if there is not already a results file stored
 if (!file.exists(here("output","fit_LS2018_mixModel.RData"))) {
@@ -123,10 +125,16 @@ if (!file.exists(here("output","fit_LS2018_mixModel.RData"))) {
     family  = ZL_mixFamily, # call the defined mixture family
     prior   = ZL_mixPriors, # use the used defined priors,
     
+    # save settings
+    sample_prior = TRUE,
+    save_pars = save_pars(all = TRUE),
+    
     # add brms settings
     warmup = warmup_samples,
     iter = warmup_samples + postwarmup_samples, 
     chains = nChains,
+    
+    # control commands for the sampler
     control = list(adapt_delta = adapt_delta, 
                    max_treedepth = max_treedepth)
   )
@@ -141,16 +149,16 @@ if (!file.exists(here("output","fit_LS2018_mixModel.RData"))) {
   load(file = here("output","fit_LS2018_mixModel.RData"))
 }
 
-hypothesis(fit_LS2018_mixModel,
-           c(hyp1 = "kappa1_ageGroup_facYounger:RI_facshort:cueCond_facNo >
-             kappa1_ageGroup_facOld:RI_facshort:cueCond_facNo"))
-
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
 pp_check(fit_LS2018_mixModel)
 
 # print results summary
 summary(fit_LS2018_mixModel)
+
+# test hypothesis
+hypothesis(fit_LS2018_mixModel,
+           c(hyp1 = "kappa1_ageGroupYoung:RIshort:cueCondNo = kappa1_ageGroupOld:RIshort:cueCondNo"))
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
