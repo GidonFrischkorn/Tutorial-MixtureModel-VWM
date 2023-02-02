@@ -15,6 +15,7 @@ graphics.off()  # switch off graphics device
 library(brms)       # for estimating the mixture model
 library(tidyverse)
 library(here)
+library(bmm)
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -38,35 +39,29 @@ max_treedepth <- 10
 
 # load data file
 data_Bays2009 <- read.table(here("data/Bays2009.txt"), header = T) %>% 
-  dplyr::mutate(# wrap cases smaller than -pi,
-    # or larger than pi around the circle
-    RespErr = dplyr::case_when(RespErr < -pi ~ RespErr + 2*pi,
-                               RespErr > pi ~ RespErr - 2*pi,
-                               TRUE ~ RespErr),
-    LureIdx1 = case_when(setsize >= 2 ~ 1,
-                         TRUE ~ 0),
-    LureIdx2 = case_when(setsize >= 3 ~ 1,
-                         TRUE ~ 0),
-    LureIdx3 = case_when(setsize >= 4 ~ 1,
-                         TRUE ~ 0),
-    LureIdx4 = case_when(setsize >= 5 ~ 1,
-                         TRUE ~ 0),
-    LureIdx5 = case_when(setsize >= 6 ~ 1,
-                         TRUE ~ 0),
-    Pos_Lure1 = case_when(is.na(Pos_Lure1) ~ 0,
-                          TRUE ~ -Pos_Lure1),
-    Pos_Lure2 = case_when(is.na(Pos_Lure2) ~ 0,
-                          TRUE ~ -Pos_Lure2),
-    Pos_Lure3 = case_when(is.na(Pos_Lure3) ~ 0,
-                          TRUE ~ -Pos_Lure3),
-    Pos_Lure4 = case_when(is.na(Pos_Lure4) ~ 0,
-                          TRUE ~ -Pos_Lure4),
-    Pos_Lure5 = case_when(is.na(Pos_Lure5) ~ 0,
-                          TRUE ~ -Pos_Lure5),
-    setsize = as.factor(setsize),) %>% 
-  select(subID,trial,setsize,RespErr,
+  dplyr::mutate(
+    RespErr = wrap(RespErr),
+    # create index variables for whether the lure exist at that setsize
+    LureIdx1 = case_when(setsize >= 2 ~ 1, TRUE ~ 0),
+    LureIdx2 = case_when(setsize >= 3 ~ 1, TRUE ~ 0),
+    LureIdx3 = case_when(setsize >= 4 ~ 1, TRUE ~ 0),
+    LureIdx4 = case_when(setsize >= 5 ~ 1, TRUE ~ 0),
+    LureIdx5 = case_when(setsize >= 6 ~ 1, TRUE ~ 0),
+    # recode lures to be relative to target
+    Pos_Lure1 = wrap(RespErr-Pos_Lure1),
+    Pos_Lure2 = wrap(RespErr-Pos_Lure2),
+    Pos_Lure3 = wrap(RespErr-Pos_Lure3),
+    Pos_Lure4 = wrap(RespErr-Pos_Lure4),
+    Pos_Lure5 = wrap(RespErr-Pos_Lure5),
+    # variable to include in formula as a correction to theta due to setsize
+    inv_ss = 1/(setsize-1),
+    inv_ss = ifelse(is.infinite(inv_ss), 1, inv_ss),
+    setsize = as.factor(setsize)) %>% 
+    select(subID,trial,setsize,RespErr,
          Pos_Lure1, Pos_Lure2, Pos_Lure3, Pos_Lure4, Pos_Lure5,
-         LureIdx1, LureIdx2, LureIdx3, LureIdx4, LureIdx5)
+         LureIdx1, LureIdx2, LureIdx3, LureIdx4, LureIdx5, inv_ss)
+
+data_Bays2009[is.na(data_Bays2009)] <- 0
 
 
 ###############################################################################!
@@ -97,11 +92,11 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             kappa7 ~ 1,             # uniform  
                             # specify mixing distributions for distinct item categories
                             nlf(theta1 ~ thetat),   # p_mem
-                            nlf(theta2 ~ LureIdx1*thetant + (1-LureIdx1)*(-100)),  # p_intrusion
-                            nlf(theta3 ~ LureIdx2*thetant + (1-LureIdx2)*(-100)),  # p_intrusion
-                            nlf(theta4 ~ LureIdx3*thetant + (1-LureIdx3)*(-100)),  # p_intrusion
-                            nlf(theta5 ~ LureIdx4*thetant + (1-LureIdx4)*(-100)),  # p_intrusion
-                            nlf(theta6 ~ LureIdx5*thetant + (1-LureIdx5)*(-100)),  # p_intrusion
+                            nlf(theta2 ~ LureIdx1*(thetant + log(inv_ss)) + (1-LureIdx1)*(-100)),  # p_intrusion
+                            nlf(theta3 ~ LureIdx2*(thetant + log(inv_ss)) + (1-LureIdx2)*(-100)),  # p_intrusion
+                            nlf(theta4 ~ LureIdx3*(thetant + log(inv_ss)) + (1-LureIdx3)*(-100)),  # p_intrusion
+                            nlf(theta5 ~ LureIdx4*(thetant + log(inv_ss)) + (1-LureIdx4)*(-100)),  # p_intrusion
+                            nlf(theta6 ~ LureIdx5*(thetant + log(inv_ss)) + (1-LureIdx5)*(-100)),  # p_intrusion
                             # target & guessing distribution will be centered using priors
                             mu1 ~ 1, # fixed intercept constrained using priors
                             mu7 ~ 1, # fixed intercept constrained using priors
@@ -142,7 +137,7 @@ fit_Bays_mixMod <- brm(formula = Bays_mixModel_formula,
                        data = data_Bays2009,
                        family = Bays_mixModel, 
                        prior = Bays_mixModel_priors, 
-                       iter = warmup_samples+postwarmup_samples, 
+                       iter = 100, 
                        chains=nChains,
                        save_pars = save_pars(all=T))
 
