@@ -82,6 +82,7 @@ fixedFX_draws <- fit_popov %>%
                  position = position_dodge(0.1)) +
     scale_fill_grey(start = 0, end = .8) +
     scale_color_grey(start = 0, end = .8) +
+    coord_cartesian(ylim=c(10,45)) +
     labs(x = "Set Size", y = "Memory imprecision (SD)", title = "A") +
     clean_plot())
 
@@ -94,6 +95,7 @@ fixedFX_draws <- fit_popov %>%
                  position = position_dodge(0.1)) +
     scale_fill_grey(start = 0, end = .8) +
     scale_color_grey(start = 0, end = .8) +
+    coord_cartesian(ylim=c(0,0.8)) +
     labs(x = "Set Size", y = "Random responses", title = "B") +
     clean_plot())
 
