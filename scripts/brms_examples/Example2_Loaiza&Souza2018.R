@@ -141,6 +141,10 @@ if (!file.exists(here("output","fit_E2_LS2018.RData"))) {
   load(file = here("output","fit_E2_LS2018.RData"))
 }
 
+###############################################################################!
+# 3) Model evaluation ----------------------------------------------------------
+###############################################################################!
+
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
 pp_check(fit_LS2018_mixModel)

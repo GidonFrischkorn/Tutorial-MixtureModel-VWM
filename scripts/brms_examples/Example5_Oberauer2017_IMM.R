@@ -69,7 +69,6 @@ df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>%
     inv_SS = 1/(SetSize - 1),
     SetSize = as.factor(SetSize))
 
-
 ###############################################################################!
 # 2) BRMS fit ------------------------------------------------------------------
 ###############################################################################!
@@ -108,6 +107,7 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            nlf(theta6 ~ LureIdx5*(exp(-s*Item6_Pos_rad)*c + a) + (1-LureIdx5)*(-100)),  # p_intrusion
                            nlf(theta7 ~ LureIdx6*(exp(-s*Item7_Pos_rad)*c + a) + (1-LureIdx6)*(-100)),  # p_intrusion
                            nlf(theta8 ~ LureIdx7*(exp(-s*Item8_Pos_rad)*c + a) + (1-LureIdx7)*(-100)),  # p_intrusion
+                           # theta9 ~ 0 + SetSize + (0 + SetSize || ID),
                            # target & guessing distribution will be centered using priors
                            mu1 ~ 1, # fixed intercept constrained using priors
                            mu9 ~ 1, # fixed intercept constrained using priors
@@ -121,10 +121,11 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            nlf(mu8 ~ Item8_Col_rad),           # center non-target
                            nlf(s ~ exp(logS)),      
                            # now predict parameters of interest
-                           kappa ~ 1 + SetSize + (1 || ID),  # fixed intercept & random slope: precision of memory distributions
-                           logS ~ 1 + SetSize  + (1 || ID),   # fixed intercept & random slope: spatial gradient (on logarithmic scale)
-                           c ~ 1 + SetSize + (1 || ID),      # fixed intercept & random slope: context activation
-                           a ~ 1 + SetSize + (1 || ID),      # fixed intercept & random slope: general activation
+                           kappa ~ 0 + SetSize + (0 + SetSize || ID),  # fixed intercept & random slope: precision of memory distributions
+                           logS ~ 0 + SetSize + (0 + SetSize || ID),   # fixed intercept & random slope: spatial gradient (on logarithmic scale)
+                           c ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: context activation
+                           a ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: general activation
+                           # n ~ 1,
                            # for brms to process this formula correctly, set non-linear to TRUE
                            nl = TRUE)
 
@@ -139,25 +140,218 @@ IMM_priors <-
   # next, we set the guessing distribution to be uniform, kappa -> 0
   prior(constant(-100), class = Intercept, dpar = "kappa9") +
   # next, we set reasonable priors for the to be estimated distributions
-  prior(normal(5.0, 0.8), class = b, nlpar = "kappa") +
+  prior(normal(2,2), class = b, nlpar = "c") +
+  # prior(constant(1), class = b, nlpar = "c") +
+  prior(normal(1.5, 2), class = b, nlpar = "kappa") +
   prior(normal(0, 1), class = b, nlpar = "logS", ) +
-  prior(normal(2, 1), class = b, nlpar = "c") +
-  prior(normal(0.5, 0.2), class = b, nlpar = "a")
+  prior(normal(0,2), class = b, dpar = "theta9") +
+  prior(normal(0.5, 1), class = b, nlpar = "a") +
+  prior(constant(0), class = b, nlpar = "logS", coef = "SetSize1") +
+  prior(constant(0), class = b, nlpar = "a", coef = "SetSize1")
 
-# fir IMM using the brm function
-fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
-                      data = df_OberauerLin2017_E1,
-                      family = IMM_mixModel, 
-                      prior = IMM_priors, 
-                      iter = 100 + 100, 
-                      chains = nChains,
-                      save_pars = save_pars(all = T))
+if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
+  # fit IMM using the brm function
+  fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
+                        data = df_OberauerLin2017_E1,
+                        family = IMM_mixModel, 
+                        prior = IMM_priors,
+                        
+                        # save settings
+                        sample_prior = TRUE,
+                        save_pars = save_pars(all = TRUE),
+                        
+                        # add brms settings
+                        warmup = warmup_samples,
+                        iter = warmup_samples + postwarmup_samples, 
+                        chains = nChains,
+                        
+                        # control commands for the sampler
+                        control = list(adapt_delta = adapt_delta, 
+                                       max_treedepth = max_treedepth))
+  
+  save(fit_IMM_mixMod,
+       file = here("output","fit_E5_OL2017.RData"),
+       compress = "xz")
+} else {
+  load(here("output","fit_E5_OL2017.RData"))
+}
+
+###############################################################################!
+# 3) Model evaluation ----------------------------------------------------------
+###############################################################################!
+
+# plot the posterior predictive check to evaluate overall model fit
+pp_check(fit_IMM_mixMod)
 
 # print out summary of results
 summary(fit_IMM_mixMod)
 
+## 3.2) extract parameter estimates --------------------------------------------
 
-cor(randFX$ID[,"Estimate","c_Intercept"],parms$c)
-cor(randFX$ID[,"Estimate","a_Intercept"],parms$a)
-cor(randFX$ID[,"Estimate","logS_Intercept"],log(parms$s))
-cor(randFX$ID[,"Estimate","kappa_Intercept"],parms$kappa)
+# extract the fixed effects from the model
+fixedEff <- fixef(fit_IMM_mixMod)
+
+# determine the rows that contain the relevant parameter estimates
+c_rows <- grepl("c_",rownames(fixedEff))
+a_rows <- rownames(fixedEff) |> starts_with("a_")
+s_rows <- grepl("logS_",rownames(fixedEff))
+kappa_rows <- grepl("kappa_",rownames(fixedEff))
+
+# extract kappa estimates
+c_fixedFX <- fixedEff[c_rows,]
+a_fixedFX <- fixedEff[a_rows,]
+s_fixedFX <- fixedEff[s_rows,]
+kappa_fixedFX <- fixedEff[kappa_rows,]
+
+# transform s & kappa from logarithmic to absolute scale
+s_fixedFX <- exp(s_fixedFX)
+kappa_fixedFX <- exp(kappa_fixedFX)
+
+# print out parameter estimates
+kappa_fixedFX
+c_fixedFX
+a_fixedFX
+s_fixedFX
+
+## 3.3) plot parameter estimates -----------------------------------------------
+results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
+                              header = T, sep = ",") %>%
+  filter(param != "catActive") %>%
+  mutate(RI = retention,
+         nCues = case_when(cueCond == "NoCue" ~ 0,
+                           cueCond == "RetroCue" & RI == "short" ~ 1,
+                           cueCond == "RetroCue" & RI == "long" ~ 2),
+         ageGroup = case_when(BP_Group == "Old" ~ "Old",
+                              TRUE ~ "Young"))
+
+# extract posterior draws for fixed effects on kappa & theta
+fixedFX_draws <- fit_IMM_mixMod %>%
+  tidy_draws() %>%
+  select(starts_with("b_"),.chain,.iteration,.draw) %>%
+  pivot_longer(cols = starts_with("b_"),
+               names_to = "modelPar",
+               values_to = "postSample") %>%
+  mutate(par = str_split_i(modelPar,"_",2),
+         setsize = str_split_i(modelPar,"_",3),
+         setsize = str_remove(setsize, "SetSize")) %>%
+  select(-modelPar) %>%
+  filter(par %in% c("c","a","logS","kappa")) %>%
+  mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
+                                    TRUE ~ postSample))
+
+# plot kappa results
+kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
+                     aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(0,30)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
+  #            aes(y = mean, x = RI, color = as.factor(nCues)),
+  #            shape = "diamond", size = 2.5,
+  #            position = position_nudge(x = -.1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Memory imprecision (SD)", fill = "No. of Cues", color = "No. of Cues",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+kappa_plot
+
+# plot pMem results
+c_plot <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
+                     aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(0,8)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
+  #            aes(y = mean, x = RI, color = as.factor(nCues)),
+  #            shape = "diamond", size = 2.5,
+  #            position = position_nudge(x = -.1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Context Activation (c)",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+c_plot
+
+# plot pMem results
+a_plot <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
+                 aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(-4,1)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
+  #            aes(y = mean, x = RI, color = as.factor(nCues)),
+  #            shape = "diamond", size = 2.5,
+  #            position = position_nudge(x = -.1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "General Activation (a)",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+a_plot
+
+# plot pMem results
+s_plot <- ggplot(data = fixedFX_draws %>% filter(par == "logS", setsize != "1"),
+                 aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(-10,150)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1.5, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
+  #            aes(y = mean, x = RI, color = as.factor(nCues)),
+  #            shape = "diamond", size = 2.5,
+  #            position = position_nudge(x = -.1, y = 0)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Spatial Specificify (s)",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+s_plot
+
+# patch plots together
+joint_plot <- kappa_plot+ a_plot + c_plot + s_plot + 
+  plot_layout(ncol = 2)
+
+# show joint plot
+joint_plot
+
+# save plots with high resolution
+ggsave(
+  filename = here("figures","plot_kappaEst_OL2017.jpeg"),
+  plot = kappa_plot, width = 6, height = 6
+)
+
+ggsave(
+  filename = here("figures","plot_cEst_OL2017.jpeg"),
+  plot = c_plot, width = 6, height = 6
+)
+
+ggsave(
+  filename = here("figures","plot_aEst_OL2017.jpeg"),
+  plot = a_plot, width = 6, height = 6
+)
+
+ggsave(
+  filename = here("figures","plot_sEst_OL2017.jpeg"),
+  plot = s_plot, width = 6, height = 6
+)
+
+ggsave(
+  filename = here("figures","plot_jointRes_LS2018.jpeg"),
+  plot = joint_plot, width = 6*2, height = 6
+)
