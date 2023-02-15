@@ -74,7 +74,7 @@ df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>%
 ###############################################################################!
 
 # create mixture of von Mises distributions
-IMM_mixModel <- mixture(von_mises(link = "identity"),
+IMMabc_mixFamily <- mixture(von_mises(link = "identity"),
                         von_mises(link = "identity"),
                         von_mises(link = "identity"),
                         von_mises(link = "identity"),
@@ -86,7 +86,7 @@ IMM_mixModel <- mixture(von_mises(link = "identity"),
                         order = "none")
 
 # set up mixture model
-IMM_mixModel_formula <- bf(dev_rad ~ 1,
+IMMabc_mixModel_formula <- bf(dev_rad ~ 1,
                            # fix kappa over memory distributions
                            nlf(kappa1 ~ kappa),     # target distribution
                            nlf(kappa2 ~ kappa),     # non-target
@@ -99,15 +99,14 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            # kappa for guessing distribution will be fixed using priors
                            kappa9 ~ 1,             # uniform  
                            # specify mixing distributions for distinct item categories
-                           nlf(theta1 ~ exp(-s*Item1_Pos_rad)*c + a),   # p_mem
-                           nlf(theta2 ~ LureIdx1*(exp(-s*Item2_Pos_rad)*c + a) + (1-LureIdx1)*(-100)),  # p_intrusion
-                           nlf(theta3 ~ LureIdx2*(exp(-s*Item3_Pos_rad)*c + a) + (1-LureIdx2)*(-100)),  # p_intrusion
-                           nlf(theta4 ~ LureIdx3*(exp(-s*Item4_Pos_rad)*c + a) + (1-LureIdx3)*(-100)),  # p_intrusion
-                           nlf(theta5 ~ LureIdx4*(exp(-s*Item5_Pos_rad)*c + a) + (1-LureIdx4)*(-100)),  # p_intrusion
-                           nlf(theta6 ~ LureIdx5*(exp(-s*Item6_Pos_rad)*c + a) + (1-LureIdx5)*(-100)),  # p_intrusion
-                           nlf(theta7 ~ LureIdx6*(exp(-s*Item7_Pos_rad)*c + a) + (1-LureIdx6)*(-100)),  # p_intrusion
-                           nlf(theta8 ~ LureIdx7*(exp(-s*Item8_Pos_rad)*c + a) + (1-LureIdx7)*(-100)),  # p_intrusion
-                           theta9 ~ b,
+                           nlf(theta1 ~ c + a),   # p_mem
+                           nlf(theta2 ~ LureIdx1*(a) + (1-LureIdx1)*(-100)),  # p_intrusion
+                           nlf(theta3 ~ LureIdx2*(a) + (1-LureIdx2)*(-100)),  # p_intrusion
+                           nlf(theta4 ~ LureIdx3*(a) + (1-LureIdx3)*(-100)),  # p_intrusion
+                           nlf(theta5 ~ LureIdx4*(a) + (1-LureIdx4)*(-100)),  # p_intrusion
+                           nlf(theta6 ~ LureIdx5*(a) + (1-LureIdx5)*(-100)),  # p_intrusion
+                           nlf(theta7 ~ LureIdx6*(a) + (1-LureIdx6)*(-100)),  # p_intrusion
+                           nlf(theta8 ~ LureIdx7*(a) + (1-LureIdx7)*(-100)),  # p_intrusion
                            # target & guessing distribution will be centered using priors
                            mu1 ~ 1, # fixed intercept constrained using priors
                            mu9 ~ 1, # fixed intercept constrained using priors
@@ -119,42 +118,35 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            nlf(mu6 ~ Item6_Col_rad),           # center non-target
                            nlf(mu7 ~ Item7_Col_rad),           # center non-target
                            nlf(mu8 ~ Item8_Col_rad),           # center non-target
-                           nlf(s ~ exp(logS)),      
                            # now predict parameters of interest
                            kappa ~ 0 + SetSize + (0 + SetSize || ID),  # fixed intercept & random slope: precision of memory distributions
-                           logS ~ 1,   # fixed intercept & random slope: spatial gradient (on logarithmic scale)
-                           c ~ 1,      # fixed intercept & random slope: context activation
+                           c ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: context activation
                            a ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: general activation
-                           b ~ 0 + SetSize + (0 + SetSize || ID),
                            # for brms to process this formula correctly, set non-linear to TRUE
                            nl = TRUE)
 
 # check default priors
-get_prior(IMM_mixModel_formula, df_OberauerLin2017_E1, IMM_mixModel)
+get_prior(IMMabc_mixModel_formula, df_OberauerLin2017_E1, IMMabc_mixFamily)
 
 # constrain priors to identify the model
-IMM_priors <- 
+IMMabc_priors <- 
   # first we center the target and guessing distribution to zero
   prior(constant(0), class = Intercept, dpar = "mu1") + 
   prior(constant(0), class = Intercept, dpar = "mu9") +
   # next, we set the guessing distribution to be uniform, kappa -> 0
   prior(constant(-100), class = Intercept, dpar = "kappa9") +
-  # next, we set reasonable priors for the to be estimated distributions
-  prior(normal(2,2), class = b, nlpar = "c") +
-  prior(constant(1), class = b, nlpar = "c") +
-  prior(normal(1.5, 2), class = b, nlpar = "kappa") +
-  prior(normal(0, 1), class = b, nlpar = "logS", ) +
-  prior(normal(0,2), class = b, dpar = "theta9") +
-  prior(normal(0.5, 1), class = b, nlpar = "a") +
-  prior(constant(0), class = b, nlpar = "logS", coef = "SetSize1") +
+  # next, we set priors for the to be estimated distributions
+  prior(normal(0,1), class = b, nlpar = "c") +
+  prior(normal(0, 2), class = b, nlpar = "kappa") +
+  prior(normal(0, 1), class = b, nlpar = "a") +
   prior(constant(0), class = b, nlpar = "a", coef = "SetSize1")
 
-if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
+if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   # fit IMM using the brm function
-  fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
+  fit_IMMabc_mixMod <- brm(formula = IMMabc_mixModel_formula, 
                         data = df_OberauerLin2017_E1,
-                        family = IMM_mixModel, 
-                        prior = IMM_priors,
+                        family = IMMabc_mixFamily, 
+                        prior = IMMabc_priors,
                         
                         # save settings
                         sample_prior = TRUE,
@@ -169,11 +161,10 @@ if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
                         control = list(adapt_delta = adapt_delta, 
                                        max_treedepth = max_treedepth))
   
-  save(fit_IMM_mixMod,
-       file = here("output","fit_E5_OL2017.RData"),
-       compress = "xz")
+  save(fit_IMMabc_mixMod,
+       file = here("output","fit_E5_OL2017_IMMabc.RData"))
 } else {
-  load(here("output","fit_E5_OL2017.RData"))
+  load(here("output","fit_E5_OL2017_IMMabc.RData"))
 }
 
 ###############################################################################!
@@ -181,15 +172,15 @@ if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMM_mixMod)
+pp_check(fit_IMMabc_mixMod)
 
 # print out summary of results
-summary(fit_IMM_mixMod)
+summary(fit_IMMabc_mixMod)
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMM_mixMod)
+fixedEff <- fixef(fit_IMMabc_mixMod)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -225,7 +216,7 @@ results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                               TRUE ~ "Young"))
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMM_mixMod %>%
+fixedFX_draws <- fit_IMMabc_mixMod %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
@@ -302,29 +293,9 @@ a_plot <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
   clean_plot()
 a_plot
 
-# plot pMem results
-s_plot <- ggplot(data = fixedFX_draws %>% filter(par == "logS", setsize != "1"),
-                 aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(-10,150)) +
-  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
-                   adjust = 1.5, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi,
-               size = 0.3, linewidth = 0.8,
-               position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
-  scale_fill_grey(start = 0, end = .8) +
-  scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = "Spatial Specificify (s)",
-       title = "B") +
-  guides(color = "none") +
-  clean_plot()
-s_plot
 
 # patch plots together
-joint_plot <- kappa_plot+ a_plot + c_plot + s_plot + 
+joint_plot <- kappa_plot + a_plot + c_plot + 
   plot_layout(ncol = 2)
 
 # show joint plot
@@ -332,26 +303,21 @@ joint_plot
 
 # save plots with high resolution
 ggsave(
-  filename = here("figures","plot_kappaEst_OL2017.jpeg"),
+  filename = here("figures","plot_kappaEst_OL2017_IMMabc.jpeg"),
   plot = kappa_plot, width = 6, height = 6
 )
 
 ggsave(
-  filename = here("figures","plot_cEst_OL2017.jpeg"),
+  filename = here("figures","plot_cEst_OL2017_IMMabc.jpeg"),
   plot = c_plot, width = 6, height = 6
 )
 
 ggsave(
-  filename = here("figures","plot_aEst_OL2017.jpeg"),
+  filename = here("figures","plot_aEst_OL2017_IMMabc.jpeg"),
   plot = a_plot, width = 6, height = 6
 )
 
 ggsave(
-  filename = here("figures","plot_sEst_OL2017.jpeg"),
-  plot = s_plot, width = 6, height = 6
-)
-
-ggsave(
-  filename = here("figures","plot_jointRes_LS2018.jpeg"),
+  filename = here("figures","plot_jointRes_OL2017_IMMabc.jpeg"),
   plot = joint_plot, width = 6*2, height = 6
 )

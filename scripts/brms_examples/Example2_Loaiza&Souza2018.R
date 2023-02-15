@@ -95,7 +95,6 @@ LS_mixFormula <- bf(dev_rad ~ 1,    # Initializing the dependent variable
                     # of the first vonMises (i.e., p_mem)
                     theta1 ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)))
 
-
 # constrain parameters using priors
 LS_mixPriors <- 
   # fix mean of the first von Mises to zero
