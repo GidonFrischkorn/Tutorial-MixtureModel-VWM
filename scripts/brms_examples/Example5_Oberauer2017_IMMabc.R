@@ -245,16 +245,16 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
   #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = "Memory imprecision (SD)", fill = "No. of Cues", color = "No. of Cues",
-       title = "B") +
+  labs(x = "Set Size", y = "Memory precision (kappa)", fill = "No. of Cues", color = "No. of Cues",
+       title = "C") +
   guides(color = "none") +
   clean_plot()
 kappa_plot
 
 # plot pMem results
 c_plot <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                     aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,8)) +
+                     aes(x = setsize, y = exp(postSample_abs))) +
+  coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -267,15 +267,15 @@ c_plot <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Context Activation (c)",
-       title = "B") +
+       title = "A") +
   guides(color = "none") +
   clean_plot()
 c_plot
 
 # plot pMem results
 a_plot <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
-                 aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(-4,1)) +
+                 aes(x = setsize, y = exp(postSample_abs))) +
+  coord_cartesian(ylim = c(0,2)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -295,7 +295,7 @@ a_plot
 
 
 # patch plots together
-joint_plot <- kappa_plot + a_plot + c_plot + 
+joint_plot <-   c_plot + a_plot + kappa_plot +
   plot_layout(ncol = 2)
 
 # show joint plot
