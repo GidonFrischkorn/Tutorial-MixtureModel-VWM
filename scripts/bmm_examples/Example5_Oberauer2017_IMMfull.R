@@ -224,13 +224,13 @@ ff <- bf(devRad ~ 1,
   # fixed intercept & random slope: context activation
   c ~ 0 + SetSize + (0 + SetSize || ID),
   # fixed intercept & random slope: general activation (swaps independent of spatial distance)
-  c ~ 0 + SetSize + (0 + SetSize || ID),
+  a ~ 0 + SetSize + (0 + SetSize || ID),
   # fixed intercept & random slope: spatial selectivity (swaps dependent on spatial distance to targets)
   s ~ 0 + SetSize + (0 + SetSize || ID))
 
 if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   # fit IMM using the brm function
-  fit_IMMbsc_mixMod <- fit_model(
+  fit_IMMfull_mixMod <- bmm::fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = 'IMMfull',
@@ -253,8 +253,8 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
                    max_treedepth = max_treedepth)
   )
   
-  save(fit_IMMbsc_mixMod,
-       file = here("output","fit_E5_OL2017_IMMbsc.RData"))
+  save(fit_IMMfull_mixMod,
+       file = here("output","fit_E5_OL2017_IMMfull.RData"))
 } else {
   load(here("output","fit_E5_OL2017_IMMbsc.RData"))
 }
