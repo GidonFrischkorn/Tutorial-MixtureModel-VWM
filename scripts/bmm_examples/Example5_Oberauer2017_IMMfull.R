@@ -114,7 +114,7 @@ draws_3pMM <- fit_3pMM %>%
                                     TRUE ~ postSample))
 
 plot_kappa_3pMM <- ggplot(data = draws_3pMM %>% filter(par == "kappa"),
-                     aes(x = setsize, y = postSample_abs)) +
+                          aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,30)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -132,7 +132,6 @@ plot_kappa_3pMM <- ggplot(data = draws_3pMM %>% filter(par == "kappa"),
   guides(color = "none") +
   clean_plot()
 
-
 # convert mixture weights into recall probabilities
 thetaSamples_3pMM <- draws_3pMM %>% 
   dplyr::filter(par != "kappa") %>% 
@@ -149,7 +148,7 @@ thetaSamples_3pMM <- draws_3pMM %>%
                values_to = "sample") 
 
 plot_pMem_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Mem"),
-                          aes(x = setsize, y = sample)) +
+                         aes(x = setsize, y = sample)) +
   coord_cartesian(ylim = c(0,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -168,7 +167,7 @@ plot_pMem_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Mem"),
   clean_plot()
 
 plot_pSwap_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Swap"),
-                         aes(x = setsize, y = sample)) +
+                          aes(x = setsize, y = sample)) +
   coord_cartesian(ylim = c(0,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -187,7 +186,7 @@ plot_pSwap_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Swap"),
   clean_plot()
 
 plot_pGuess_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Guess"),
-                          aes(x = setsize, y = sample)) +
+                           aes(x = setsize, y = sample)) +
   coord_cartesian(ylim = c(0,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -215,119 +214,49 @@ ggsave(
 )
 
 ###############################################################################!
-# 2) Fit IMMabc ----------------------------------------------------------------
+# 2) Fit IMMbsc ----------------------------------------------------------------
 ###############################################################################!
 
-df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>% 
-  mutate(
-    LureIdx1 = case_when(as.numeric(SetSize) >= 2 ~ 1,
-                         TRUE ~ 0),
-    LureIdx2 = case_when(as.numeric(SetSize)  >= 3 ~ 1,
-                         TRUE ~ 0),
-    LureIdx3 = case_when(as.numeric(SetSize)  >= 4 ~ 1,
-                         TRUE ~ 0),
-    LureIdx4 = case_when(as.numeric(SetSize)  >= 5 ~ 1,
-                         TRUE ~ 0),
-    LureIdx5 = case_when(as.numeric(SetSize)  >= 6 ~ 1,
-                         TRUE ~ 0),
-    LureIdx6 = case_when(as.numeric(SetSize)  >= 7 ~ 1,
-                         TRUE ~ 0),
-    LureIdx7 = case_when(as.numeric(SetSize)  >= 8 ~ 1, 
-                         TRUE ~ 0),
-    inv_SS = 1/(as.numeric(SetSize)  - 1))
-
-# create mixture of von Mises distributions
-IMMabc_mixFamily <- mixture(von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            von_mises(link = "identity"),
-                            order = "none")
-
 # set up mixture model
-IMMabc_mixModel_formula <- bf(devRad ~ 1,
-                              # fix kappa over memory distributions
-                              nlf(kappa1 ~ kappa),     # target distribution
-                              nlf(kappa2 ~ kappa),     # non-target
-                              nlf(kappa3 ~ kappa),     # non-target
-                              nlf(kappa4 ~ kappa),     # non-target
-                              nlf(kappa5 ~ kappa),     # non-target
-                              nlf(kappa6 ~ kappa),     # non-target
-                              nlf(kappa7 ~ kappa),     # non-target
-                              nlf(kappa8 ~ kappa),     # non-target
-                              # kappa for guessing distribution will be fixed using priors
-                              kappa9 ~ 1,             # uniform  
-                              # specify mixing distributions for distinct item categories
-                              nlf(theta1 ~ c + a),   # p_mem
-                              nlf(theta2 ~ LureIdx1*(a) + (1-LureIdx1)*(-100)),  # p_intrusion
-                              nlf(theta3 ~ LureIdx2*(a) + (1-LureIdx2)*(-100)),  # p_intrusion
-                              nlf(theta4 ~ LureIdx3*(a) + (1-LureIdx3)*(-100)),  # p_intrusion
-                              nlf(theta5 ~ LureIdx4*(a) + (1-LureIdx4)*(-100)),  # p_intrusion
-                              nlf(theta6 ~ LureIdx5*(a) + (1-LureIdx5)*(-100)),  # p_intrusion
-                              nlf(theta7 ~ LureIdx6*(a) + (1-LureIdx6)*(-100)),  # p_intrusion
-                              nlf(theta8 ~ LureIdx7*(a) + (1-LureIdx7)*(-100)),  # p_intrusion
-                              # target & guessing distribution will be centered using priors
-                              mu1 ~ 1, # fixed intercept constrained using priors
-                              mu9 ~ 1, # fixed intercept constrained using priors
-                              # center non-target distribution on data specified locations
-                              nlf(mu2 ~ Item2_Col_rad),           # center non-target
-                              nlf(mu3 ~ Item3_Col_rad),           # center non-target
-                              nlf(mu4 ~ Item4_Col_rad),           # center non-target
-                              nlf(mu5 ~ Item5_Col_rad),           # center non-target
-                              nlf(mu6 ~ Item6_Col_rad),           # center non-target
-                              nlf(mu7 ~ Item7_Col_rad),           # center non-target
-                              nlf(mu8 ~ Item8_Col_rad),           # center non-target
-                              # now predict parameters of interest
-                              kappa ~ 0 + SetSize + (0 + SetSize || ID),  # fixed intercept & random slope: precision of memory distributions
-                              c ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: context activation
-                              a ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: general activation
-                              # for brms to process this formula correctly, set non-linear to TRUE
-                              nl = TRUE)
-
-# check default priors
-get_prior(IMMabc_mixModel_formula, df_OberauerLin2017_E1, IMMabc_mixFamily)
-
-# constrain priors to identify the model
-IMMabc_priors <- 
-  # first we center the target and guessing distribution to zero
-  prior(constant(0), class = Intercept, dpar = "mu1") + 
-  prior(constant(0), class = Intercept, dpar = "mu9") +
-  # next, we set the guessing distribution to be uniform, kappa -> 0
-  prior(constant(-100), class = Intercept, dpar = "kappa9") +
-  # next, we set priors for the to be estimated distributions
-  prior(normal(0,1), class = b, nlpar = "c") +
-  prior(normal(0, 2), class = b, nlpar = "kappa") +
-  prior(normal(0, 1), class = b, nlpar = "a") +
-  prior(constant(0), class = b, nlpar = "a", coef = "SetSize1")
+ff <- bf(devRad ~ 1,
+  # fixed intercept & random slope: precision of memory distributions
+  kappa ~ 0 + SetSize + (0 + SetSize || ID),
+  # fixed intercept & random slope: context activation
+  c ~ 0 + SetSize + (0 + SetSize || ID),
+  # fixed intercept & random slope: general activation (swaps independent of spatial distance)
+  c ~ 0 + SetSize + (0 + SetSize || ID),
+  # fixed intercept & random slope: spatial selectivity (swaps dependent on spatial distance to targets)
+  s ~ 0 + SetSize + (0 + SetSize || ID))
 
 if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   # fit IMM using the brm function
-  fit_IMMabc_mixMod <- brm(formula = IMMabc_mixModel_formula, 
-                           data = df_OberauerLin2017_E1,
-                           family = IMMabc_mixFamily, 
-                           prior = IMMabc_priors,
-                           
-                           # save settings
-                           sample_prior = TRUE,
-                           save_pars = save_pars(all = TRUE),
-                           
-                           # add brms settings
-                           warmup = warmup_samples,
-                           iter = warmup_samples + postwarmup_samples, 
-                           chains = nChains,
-                           
-                           # control commands for the sampler
-                           control = list(adapt_delta = adapt_delta, 
-                                          max_treedepth = max_treedepth))
+  fit_IMMbsc_mixMod <- fit_model(
+    formula = ff, 
+    data = df_OberauerLin2017_E1, 
+    model_type = 'IMMfull',
+    lures = paste0('Item',2:8,'_Col_rad'),
+    spaPos = paste0('Item',2:8,'_Pos_rad'),
+    setsize = "SetSize",
+    parallel = T,
+    
+    # save settings
+    sample_prior = TRUE,
+    save_pars = save_pars(all = TRUE),
+    
+    # add brms settings
+    warmup = warmup_samples,
+    iter = warmup_samples + postwarmup_samples, 
+    chains = nChains,
+    
+    # control commands for the sampler
+    control = list(adapt_delta = adapt_delta, 
+                   max_treedepth = max_treedepth)
+  )
   
-  save(fit_IMMabc_mixMod,
-       file = here("output","fit_E5_OL2017_IMMabc.RData"))
+  save(fit_IMMbsc_mixMod,
+       file = here("output","fit_E5_OL2017_IMMbsc.RData"))
 } else {
-  load(here("output","fit_E5_OL2017_IMMabc.RData"))
+  load(here("output","fit_E5_OL2017_IMMbsc.RData"))
 }
 
 ###############################################################################!
@@ -393,7 +322,7 @@ fixedFX_draws <- fit_IMMabc_mixMod %>%
 
 # plot kappa results
 plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
-                     aes(x = setsize, y = postSample_abs)) +
+                            aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,30)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -413,7 +342,7 @@ plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 
 # plot pMem results
 plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                 aes(x = setsize, y = exp(postSample_abs))) +
+                        aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -433,7 +362,7 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 
 # plot pMem results
 plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
-                 aes(x = setsize, y = exp(postSample_abs))) +
+                        aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,2)) +
   geom_hline(yintercept = exp(0), color ="firebrick", 
              linetype = "dotted", linewidth = 1) +
