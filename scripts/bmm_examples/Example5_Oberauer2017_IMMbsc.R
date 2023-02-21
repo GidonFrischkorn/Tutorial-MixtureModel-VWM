@@ -242,8 +242,8 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
     save_pars = save_pars(all = TRUE),
     
     # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
+    warmup = 200,
+    iter = 200 + 200, 
     chains = nChains,
     
     # control commands for the sampler
@@ -262,15 +262,15 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMMabc_mixMod)
+pp_check(fit_IMMbsc_mixMod)
 
 # print out summary of results
-summary(fit_IMMabc_mixMod)
+summary(fit_IMMbsc_mixMod)
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMMabc_mixMod)
+fixedEff <- fixef(fit_IMMbsc_mixMod)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -319,7 +319,7 @@ fixedFX_draws <- fit_IMMabc_mixMod %>%
                                     TRUE ~ postSample))
 
 # plot kappa results
-plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
+plot_kappa_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
                             aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,30)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -339,7 +339,7 @@ plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
   clean_plot()
 
 # plot pMem results
-plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
+plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                         aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -359,7 +359,7 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   clean_plot()
 
 # plot pMem results
-plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
+plot_a_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
                         aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,2)) +
   geom_hline(yintercept = exp(0), color ="firebrick", 
@@ -384,7 +384,7 @@ plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "
 
 
 # patch plots together
-joint_plot <-   plot_c_IMMabc + plot_a_IMMabc + plot_kappa_IMMabc +
+joint_plot <-   plot_c_IMMbsc + plot_a_IMMbsc + plot_kappa_IMMbsc +
   plot_layout(ncol = 3)
 
 # show joint plot

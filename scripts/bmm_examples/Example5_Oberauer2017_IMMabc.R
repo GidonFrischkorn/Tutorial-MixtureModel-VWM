@@ -39,6 +39,7 @@ max_treedepth <- 10
 
 # read in data for Experiment 2 from Oberauer & Lin (2017)
 df_OberauerLin2017_E1 <- read.table(here("data","OberauerLin2017_IM","colorwheel9.dat"))
+df_OberauerLin2017_E1 <- Colorwheel9
 colnames(df_OberauerLin2017_E1) <- c(
   "ID","Session","Trial","TrialAlt","SetSize",
   "Item1_Col","Item1_Pos","Item2_Col","Item2_Pos","Item3_Col","Item3_Pos","Item4_Col","Item4_Pos",
@@ -70,7 +71,7 @@ if (!file.exists(here("output",filename))) {
   fit_3pMM <- bmm::fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
-    model_type = '3p',
+    model_type = 'HLM',
     lures = paste0('Item',2:8,'_Col_rad'),
     setsize = "SetSize",
     parallel = T,

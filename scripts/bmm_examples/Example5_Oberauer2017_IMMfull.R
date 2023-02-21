@@ -67,7 +67,7 @@ ff <- bf(devRad ~ 1,
 # if the model has been already estimated, load the results, otherwise estimate it
 filename <- "fit_E5_OL2017_3pMM.Rdata"
 if (!file.exists(here("output",filename))) {
-  fit_3pMM <- bmm::fit_model(
+  fit_3pMM <- fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = '3p',
@@ -230,7 +230,7 @@ ff <- bf(devRad ~ 1,
 
 if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   # fit IMM using the brm function
-  fit_IMMfull_mixMod <- bmm::fit_model(
+  fit_IMMfull_mixMod <- fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = 'IMMfull',
@@ -244,8 +244,8 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
     save_pars = save_pars(all = TRUE),
     
     # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
+    warmup = 200,
+    iter = 200 + 200, 
     chains = nChains,
     
     # control commands for the sampler
@@ -264,15 +264,15 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMMabc_mixMod)
+pp_check(fit_IMMfull_mixMod)
 
 # print out summary of results
-summary(fit_IMMabc_mixMod)
+summary(fit_IMMfull_mixMod)
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMMabc_mixMod)
+fixedEff <- fixef(fit_IMMfull_mixMod)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -306,7 +306,7 @@ results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                               TRUE ~ "Young"))
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMMabc_mixMod %>%
+fixedFX_draws <- fit_IMMfull_mixMod %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
@@ -321,7 +321,7 @@ fixedFX_draws <- fit_IMMabc_mixMod %>%
                                     TRUE ~ postSample))
 
 # plot kappa results
-plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
+plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
                             aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,30)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -341,7 +341,7 @@ plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
   clean_plot()
 
 # plot pMem results
-plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
+plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                         aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -361,7 +361,7 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   clean_plot()
 
 # plot pMem results
-plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
+plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
                         aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,2)) +
   geom_hline(yintercept = exp(0), color ="firebrick", 
@@ -386,14 +386,14 @@ plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "
 
 
 # patch plots together
-joint_plot <-   plot_c_IMMabc + plot_a_IMMabc + plot_kappa_IMMabc +
-  plot_layout(ncol = 3)
+joint_plot <-   plot_c_IMMfull + plot_a_IMMfull + plot_kappa_IMMfull +
+  plot_layout(ncol = 2,nrow = 2)
 
 # show joint plot
 joint_plot
 
 # save plots with high resolution
 ggsave(
-  filename = here("figures","plotAll_OL2017_IMMabc.jpeg"),
+  filename = here("figures","plotAll_OL2017_IMMfull.jpeg"),
   plot = joint_plot, width = 4*3, height = 4
 )
