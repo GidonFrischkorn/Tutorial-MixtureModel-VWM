@@ -39,7 +39,6 @@ max_treedepth <- 10
 
 # read in data for Experiment 2 from Oberauer & Lin (2017)
 df_OberauerLin2017_E1 <- read.table(here("data","OberauerLin2017_IM","colorwheel9.dat"))
-df_OberauerLin2017_E1 <- Colorwheel9
 colnames(df_OberauerLin2017_E1) <- c(
   "ID","Session","Trial","TrialAlt","SetSize",
   "Item1_Col","Item1_Pos","Item2_Col","Item2_Pos","Item3_Col","Item3_Pos","Item4_Col","Item4_Pos",
@@ -59,6 +58,7 @@ df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>%
 # 1) Fit 3par Mixture model - using bmm functions                         ####
 #############################################################################!
 
+## 1a) Estimate pars for 3par Mixture Model ------------------------------------
 # formula
 ff <- bf(devRad ~ 1,
          kappa ~ 0 + SetSize + (0 + SetSize || ID),
@@ -71,7 +71,7 @@ if (!file.exists(here("output",filename))) {
   fit_3pMM <- bmm::fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
-    model_type = 'HLM',
+    model_type = '3p',
     lures = paste0('Item',2:8,'_Col_rad'),
     setsize = "SetSize",
     parallel = T,
@@ -99,6 +99,7 @@ pp_check(fit_3pMM)
 # print out summary of results
 summary(fit_3pMM)
 
+## 1b) Plot 3par Mixture Model results -----------------------------------------
 # extract posterior estimates from the model
 draws_3pMM <- fit_3pMM %>%
   tidy_draws() %>%
@@ -122,17 +123,12 @@ plot_kappa_3pMM <- ggplot(data = draws_3pMM %>% filter(par == "kappa"),
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Memory precision (kappa)", fill = "No. of Cues", color = "No. of Cues",
        title = "D") +
   guides(color = "none") +
   clean_plot()
-
 
 # convert mixture weights into recall probabilities
 thetaSamples_3pMM <- draws_3pMM %>% 
@@ -157,10 +153,6 @@ plot_pMem_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Mem"),
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = expression(P[mem]), fill = "No. of Cues", color = "No. of Cues",
@@ -176,10 +168,6 @@ plot_pSwap_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Swap"),
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = expression(P[swap]), fill = "No. of Cues", color = "No. of Cues",
@@ -195,10 +183,6 @@ plot_pGuess_3pMM <- ggplot(data = thetaSamples_3pMM %>% filter(coef == "p_Guess"
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = expression(P[guess]), fill = "No. of Cues", color = "No. of Cues",
@@ -219,6 +203,7 @@ ggsave(
 # 2) Fit IMMabc ----------------------------------------------------------------
 ###############################################################################!
 
+## 2a) Estimate pars for IMMabc ------------------------------------------------
 # set up mixture model
 ff <- bf(devRad ~ 1,
   # fixed intercept & random slope: precision of memory distributions
@@ -258,17 +243,13 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   load(here("output","fit_E5_OL2017_IMMabc.RData"))
 }
 
-###############################################################################!
-# 3) Model evaluation ----------------------------------------------------------
-###############################################################################!
-
 # plot the posterior predictive check to evaluate overall model fit
 pp_check(fit_IMMabc_mixMod)
 
 # print out summary of results
 summary(fit_IMMabc_mixMod)
 
-## 3.2) extract parameter estimates --------------------------------------------
+## 2b) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
 fixedEff <- fixef(fit_IMMabc_mixMod)
@@ -293,7 +274,7 @@ kappa_fixedFX
 exp(c_fixedFX)
 exp(a_fixedFX)
 
-## 3.3) plot parameter estimates -----------------------------------------------
+## 2c) plot parameter estimates -----------------------------------------------
 results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                               header = T, sep = ",") %>%
   filter(param != "catActive") %>%
@@ -341,8 +322,8 @@ plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 
 # plot pMem results
 plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,100)) +
+                        aes(x = setsize, y = postSample_abs)) +
+  #coord_cartesian(ylim = c(0,10)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -361,9 +342,9 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 
 # plot pMem results
 plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,2)) +
-  geom_hline(yintercept = exp(0), color ="firebrick", 
+                        aes(x = setsize, y = postSample_abs)) +
+  #coord_cartesian(ylim = c(-1,0.5)) +
+  geom_hline(yintercept = 0, color ="firebrick", 
              linetype = "dotted", linewidth = 1) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,

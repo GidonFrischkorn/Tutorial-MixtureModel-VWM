@@ -132,7 +132,6 @@ plot_kappa_3pMM <- ggplot(data = draws_3pMM %>% filter(par == "kappa"),
   guides(color = "none") +
   clean_plot()
 
-
 # convert mixture weights into recall probabilities
 thetaSamples_3pMM <- draws_3pMM %>% 
   dplyr::filter(par != "kappa") %>% 
