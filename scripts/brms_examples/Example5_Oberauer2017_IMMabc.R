@@ -74,7 +74,7 @@ if (!file.exists(here("output",filename))) {
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = '3p',
-    lures = paste0('Item',2:8,'_Col_rad'),
+    non_targets = paste0('Item',2:8,'_Col_rad'),
     setsize = "SetSize",
     parallel = T,
     

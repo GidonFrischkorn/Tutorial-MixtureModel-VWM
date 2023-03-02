@@ -6,8 +6,7 @@
 #' 
 #' 
 
-# load missing output files
-source(here("scripts","LoadResultsFiles.R"))
+
 
 #############################################################################!
 # 0) R Setup                                                             ####
@@ -15,6 +14,9 @@ source(here("scripts","LoadResultsFiles.R"))
 
 pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
 pacman::p_load_gh("venpopov/bmm")
+
+# load missing output files
+source(here("scripts","LoadResultsFiles.R"))
 
 data_Bays2009 <- read.table(here("data/Bays2009.txt"), header = T)
 
@@ -50,7 +52,7 @@ if (!file.exists(here(filename))) {
   fit_bays2009 <- bmm::fit_model(formula = ff, 
                    data = data_Bays2009, 
                    model_type = '3p',
-                   lures=paste0('Pos_Lure', 1:5),
+                   non_targets=paste0('Pos_Lure', 1:5),
                    setsize="setsize",
                    warmup=1000, iter=2000, parallel=TRUE)  
   

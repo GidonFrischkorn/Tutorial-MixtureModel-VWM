@@ -69,12 +69,13 @@ ff <- bf(devRad ~ 1,
          thetant ~ 0 + SetSize + (0 + SetSize || ID))
 
 # if the model has been already estimated, load the results, otherwise estimate it
+filename = "fit_E5_OL2017_IMMabc.RData"
 if (!file.exists(here("output",filename))) {
   fit_3pMM <- bmm::fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = '3p',
-    lures = paste0('Item',2:8,'_Col_rad'),
+    non_targets = paste0('Item',2:8,'_Col_rad'),
     setsize = "SetSize",
     parallel = T,
     
