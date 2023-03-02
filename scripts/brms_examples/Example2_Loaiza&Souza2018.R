@@ -270,14 +270,14 @@ joint_plot
 # save plots with high resolution
 ggsave(
   filename = here("figures/plot_kappaEst_LS2018.jpeg"),
-  plot = kappa_plot, width = 6, height = 6
+  plot = kappa_plot, width = 5, height = 5
 )
 ggsave(
   filename = here("figures/plot_pmemEst_LS2018.jpeg"),
-  plot = pMem_plot, width = 6, height = 6
+  plot = pMem_plot, width = 5, height = 5
 )
 
 ggsave(
   filename = here("figures/plot_jointRes_LS2018.jpeg"),
-  plot = joint_plot, width = 6*2, height = 6
+  plot = joint_plot, width = 5*2, height = 5
 )

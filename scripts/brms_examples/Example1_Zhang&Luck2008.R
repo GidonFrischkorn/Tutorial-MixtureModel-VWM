@@ -225,7 +225,7 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
              position = position_nudge(x = .1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = expression(P[mem]), title = "B") +
+  labs(x = "Set Size", y = expression(P[mem]), title = "A") +
   clean_plot()
 pMem_plot
 
@@ -238,16 +238,16 @@ joint_plot
 # save plots with high resolution
 ggsave(
   filename = here("figures/plot_kappaEst_ZL2008.jpeg"),
-  plot = kappa_plot, width = 6, height = 6
+  plot = kappa_plot, width = 4, height = 4
 )
 ggsave(
   filename = here("figures/plot_pmemEst_ZL2008.jpeg"),
-  plot = pMem_plot, width = 6, height = 6
+  plot = pMem_plot, width = 4, height = 4
 )
 
 ggsave(
   filename = here("figures/plot_jointRes_ZL2008.jpeg"),
-  plot = joint_plot, width = 6*2, height = 6
+  plot = joint_plot, width = 4*2, height = 4
 )
 
 ## 4.4) Test hypothesis --------------------------------------------------------
