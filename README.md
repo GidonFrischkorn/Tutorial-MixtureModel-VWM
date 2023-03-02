@@ -9,3 +9,5 @@ To ensure that all relative paths work, we have set up an R project with the fol
 - output: folder for output files of R scripts (e.g. RData files containing brms model fits)
 - figures: folder to save figures from R scripts
 - data: folder containing benchmark data sets to evaluate mixture models
+
+Please note: Some of the output files exceeded the size limit for files allowed by GitHub, these are avaliable via: https://osf.io/vsrz4/
