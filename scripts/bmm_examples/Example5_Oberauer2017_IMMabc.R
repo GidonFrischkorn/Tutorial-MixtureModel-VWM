@@ -1,4 +1,4 @@
-#' This is the tutorial script for setting up the Bays et al. (2009) mixture model
+#' This is the tutorial script for setting up the Interference Measurement Model (IMMabc)
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
@@ -69,7 +69,7 @@ ff <- bf(devRad ~ 1,
          thetant ~ 0 + SetSize + (0 + SetSize || ID))
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename = "fit_E5_OL2017_IMMabc.RData"
+filename = "fit_E5_OL2017_3pMM.RData"
 if (!file.exists(here("output",filename))) {
   fit_3pMM <- bmm::fit_model(
     formula = ff, 
@@ -216,13 +216,14 @@ ff <- bf(devRad ~ 1,
   # fixed intercept & random slope: general activation
   a ~ 0 + SetSize + (0 + SetSize || ID))
 
-if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
+filename_IMMabc = "fit_E5_OL2017_IMMabc.RData"
+if (!file.exists(here("output",filename_IMMabc))) {
   # fit IMM using the brm function
   fit_IMMabc_mixMod <- bmm::fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = 'IMMabc',
-    lures = paste0('Item',2:8,'_Col_rad'),
+    non_targets = paste0('Item',2:8,'_Col_rad'),
     setsize = "SetSize",
     parallel = T,
     
@@ -241,9 +242,9 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   )
   
   save(fit_IMMabc_mixMod,
-       file = here("output","fit_E5_OL2017_IMMabc.RData"))
+       file = here("output",filename_IMMabc))
 } else {
-  load(here("output","fit_E5_OL2017_IMMabc.RData"))
+  load(here("output",filename_IMMabc))
 }
 
 # plot the posterior predictive check to evaluate overall model fit

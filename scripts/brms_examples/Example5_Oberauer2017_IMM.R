@@ -1,9 +1,9 @@
-#' This is the tutorial script for setting up the Bays et al. (2009) mixture model
-#' for visual working memory tasks that use continuous report recall procedures.
+#' This is the tutorial script for setting up the full Interference Measurement
+#' model for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
 #'  1) how the model is set up using the brms package, 
-#'  2) how a simple version of the model is estimates, and 
+#'  2) how a simple version of the model is estimated, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
 # 0) R Setup: Packages & Data --------------------------------------------------
@@ -152,7 +152,7 @@ IMM_priors <-
   prior(constant(0), class = b, nlpar = "logS", coef = "SetSize1") +
   prior(constant(0), class = b, nlpar = "a", coef = "SetSize1")
 
-if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
+if (!file.exists(here("output","fit_E5_OL2017_IMMfull.RData"))) {
   # fit IMM using the brm function
   fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
                         data = df_OberauerLin2017_E1,
@@ -173,10 +173,10 @@ if (!file.exists(here("output","fit_E5_OL2017.RData"))) {
                                        max_treedepth = max_treedepth))
   
   save(fit_IMM_mixMod,
-       file = here("output","fit_E5_OL2017.RData"),
+       file = here("output","fit_E5_OL2017_IMMfull.RData"),
        compress = "xz")
 } else {
-  load(here("output","fit_E5_OL2017.RData"))
+  load(here("output","fit_E5_OL2017_IMMfull.RData"))
 }
 
 ###############################################################################!

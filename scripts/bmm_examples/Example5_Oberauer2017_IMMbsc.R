@@ -1,4 +1,4 @@
-#' This is the tutorial script for setting up the Bays et al. (2009) mixture model
+#' This is the tutorial script for setting up the Interference Measurement Model (IMMbsc)
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
@@ -229,13 +229,14 @@ ff <- bf(devRad ~ 1,
   # fixed intercept & random slope: general activation
   s ~ 0 + SetSize + (0 + SetSize || ID))
 
-if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
+filename_IMMbsc <- "fit_E5_OL2017_IMMbsc.RData"
+if (!file.exists(here("output",filename_IMMbsc))) {
   # fit IMM using the brm function
   fit_IMMbsc_mixMod <- fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = 'IMMbsc',
-    lures = paste0('Item',2:8,'_Col_rad'),
+    non_targets = paste0('Item',2:8,'_Col_rad'),
     spaPos = paste0('Item',2:8,'_Pos_rad'),
     setsize = "SetSize",
     parallel = T,
@@ -245,8 +246,8 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
     save_pars = save_pars(all = TRUE),
     
     # add brms settings
-    warmup = 200,
-    iter = 200 + 200, 
+    warmup = warmup_samples,
+    iter = warmup_samples + postwarmup_samples, 
     chains = nChains,
     
     # control commands for the sampler
@@ -255,9 +256,9 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   )
   
   save(fit_IMMbsc_mixMod,
-       file = here("output","fit_E5_OL2017_IMMbsc.RData"))
+       file = here("output",filename_IMMbsc))
 } else {
-  load(here("output","fit_E5_OL2017_IMMbsc.RData"))
+  load(here("output",filename_IMMbsc))
 }
 
 ###############################################################################!

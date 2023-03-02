@@ -1,9 +1,10 @@
-#' This is the tutorial script for setting up the Bays et al. (2009) mixture model
-#' for visual working memory tasks that use continuous report recall procedures.
+#' This is the tutorial script for setting up the Interference Measurement Model
+#' in the abc version, assuming that swaps occur independent of spatial proximity
+#' to the target for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
 #'  1) how the model is set up using the brms package, 
-#'  2) how a simple version of the model is estimates, and 
+#'  2) how a simple version of the model is estimated, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
 # 0) R Setup: Packages & Data --------------------------------------------------

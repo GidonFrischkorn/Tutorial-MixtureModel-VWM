@@ -1,4 +1,4 @@
-#' This is the tutorial script for setting up the Bays et al. (2009) mixture model
+#' This is the tutorial script for setting up the Interference Measurement Model (IMMfull)
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
@@ -231,13 +231,14 @@ ff <- bf(devRad ~ 1,
   # fixed intercept & random slope: spatial selectivity (swaps dependent on spatial distance to targets)
   s ~ 0 + SetSize + (0 + SetSize || ID))
 
-if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
+filename_IMMfull <- "fit_E5_OL2017_IMMfull.RData"
+if (!file.exists(here("output",filename_IMMfull))) {
   # fit IMM using the brm function
   fit_IMMfull_mixMod <- fit_model(
     formula = ff, 
     data = df_OberauerLin2017_E1, 
     model_type = 'IMMfull',
-    lures = paste0('Item',2:8,'_Col_rad'),
+    non_targets = paste0('Item',2:8,'_Col_rad'),
     spaPos = paste0('Item',2:8,'_Pos_rad'),
     setsize = "SetSize",
     parallel = T,
@@ -257,9 +258,9 @@ if (!file.exists(here("output","fit_E5_OL2017_IMMabc.RData"))) {
   )
   
   save(fit_IMMfull_mixMod,
-       file = here("output","fit_E5_OL2017_IMMfull.RData"))
+       file = here("output",filename_IMMfull))
 } else {
-  load(here("output","fit_E5_OL2017_IMMbsc.RData"))
+  load(here("output",filename_IMMfull))
 }
 
 ###############################################################################!
