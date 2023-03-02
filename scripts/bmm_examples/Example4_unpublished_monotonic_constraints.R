@@ -11,6 +11,9 @@ pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
 pacman::p_load_gh("venpopov/bmm")
 source(here('functions/clean_plot.R'))
 
+# load missing output files
+source(here("scripts","LoadResultsFiles.R"))
+
 data_popov <- read.csv(here('data/popov_unpublished.csv'))
 data_popov$setsize <- as.factor(data_popov$setsize)
 

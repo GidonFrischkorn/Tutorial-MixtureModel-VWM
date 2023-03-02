@@ -17,6 +17,9 @@ pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
 
+# load missing output files
+source(here("scripts","LoadResultsFiles.R"))
+
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
 
@@ -66,7 +69,6 @@ ff <- bf(devRad ~ 1,
          thetant ~ 0 + SetSize + (0 + SetSize || ID))
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename <- "fit_E5_OL2017_3pMM.Rdata"
 if (!file.exists(here("output",filename))) {
   fit_3pMM <- bmm::fit_model(
     formula = ff, 

@@ -17,6 +17,9 @@ pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
 
+# load missing output files
+source(here("scripts","LoadResultsFiles.R"))
+
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
 

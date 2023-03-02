@@ -17,6 +17,9 @@ library(tidyverse)
 library(here)
 library(bmm)
 
+# load missing output files
+source(here("scripts","LoadResultsFiles.R"))
+
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
 
