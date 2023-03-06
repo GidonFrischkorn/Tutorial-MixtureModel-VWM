@@ -63,14 +63,14 @@ df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>%
 
 # set up mixture model
 ff <- bf(devRad ~ 1,
-  # fixed intercept & random slope: precision of memory distributions
-  kappa ~ 0 + SetSize + (0 + SetSize || ID),
-  # fixed intercept & random slope: context activation
-  c ~ 0 + SetSize + (0 + SetSize || ID),
-  # fixed intercept & random slope: general activation (swaps independent of spatial distance)
-  a ~ 0 + SetSize + (0 + SetSize || ID),
-  # fixed intercept & random slope: spatial selectivity (swaps dependent on spatial distance to targets)
-  s ~ 0 + SetSize + (0 + SetSize || ID))
+         # fixed intercept & random slope: precision of memory distributions
+         kappa ~ 0 + SetSize + (0 + SetSize || ID),
+         # fixed intercept & random slope: context activation
+         c ~ 0 + SetSize + (0 + SetSize || ID),
+         # fixed intercept & random slope: general activation (swaps independent of spatial distance)
+         a ~ 0 + SetSize + (0 + SetSize || ID),
+         # fixed intercept & random slope: spatial selectivity (swaps dependent on spatial distance to targets)
+         s ~ 0 + SetSize + (0 + SetSize || ID))
 
 filename_IMMfull <- "fit_E5_OL2017_IMMfull.RData"
 if (!file.exists(here("output",filename_IMMfull))) {
@@ -102,22 +102,22 @@ if (!file.exists(here("output",filename_IMMfull))) {
        file = here("output",filename_IMMfull))
 } else {
   load(here("output",filename_IMMfull))
-}
+}  
 
 ###############################################################################!
 # Model evaluation ----------------------------------------------------------
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMMfull_mixMod)
+pp_check(fit_IMM_mixMod)
 
 # print out summary of results
-summary(fit_IMMfull_mixMod)
+summary(fit_IMM_mixMod)
 
 ## extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMMfull_mixMod)
+fixedEff <- fixef(fit_IMM_mixMod)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -138,20 +138,13 @@ kappa_fixedFX <- exp(kappa_fixedFX)
 kappa_fixedFX
 exp(c_fixedFX)
 exp(a_fixedFX)
+exp(s_fixedFX)
+
 
 ## plot parameter estimates -----------------------------------------------
-results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
-                              header = T, sep = ",") %>%
-  filter(param != "catActive") %>%
-  mutate(RI = retention,
-         nCues = case_when(cueCond == "NoCue" ~ 0,
-                           cueCond == "RetroCue" & RI == "short" ~ 1,
-                           cueCond == "RetroCue" & RI == "long" ~ 2),
-         ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Young"))
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMMfull_mixMod %>%
+fixedFX_draws <- fit_IMM_mixMod %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
@@ -167,17 +160,13 @@ fixedFX_draws <- fit_IMMfull_mixMod %>%
 
 # plot kappa results
 plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
-                            aes(x = setsize, y = postSample_abs)) +
+                             aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,30)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Memory precision (kappa)", fill = "No. of Cues", color = "No. of Cues",
@@ -185,19 +174,15 @@ plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
   guides(color = "none") +
   clean_plot()
 
-# plot pMem results
+# plot Context Activation
 plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,100)) +
+                         aes(x = setsize, y = exp(postSample_abs))) +
+  coord_cartesian(ylim = c(0,150)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Context Activation (c)",
@@ -205,11 +190,11 @@ plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   guides(color = "none") +
   clean_plot()
 
-# plot pMem results
+# plot General Activation parameter
 plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
+                         aes(x = setsize, y = exp(postSample_abs))) +
   coord_cartesian(ylim = c(0,2)) +
-  geom_hline(yintercept = exp(0), color ="firebrick", 
+  geom_hline(yintercept = exp(0), color = "firebrick", 
              linetype = "dotted", linewidth = 1) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
@@ -218,10 +203,6 @@ plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != 
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "General Activation (a)",
@@ -229,9 +210,27 @@ plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != 
   guides(color = "none") +
   clean_plot()
 
+# plot Generalization Gradient
+plot_s_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "logS", setsize != "1"),
+                         aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(0,100)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), 
+                   side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, 
+                   show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Generalization Gradient (s)",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+
 
 # patch plots together
-joint_plot <-   plot_c_IMMfull + plot_a_IMMfull + plot_kappa_IMMfull +
+joint_plot <-   plot_c_IMMfull + plot_a_IMMfull + plot_s_IMMfull + plot_kappa_IMMfull +
   plot_layout(ncol = 2,nrow = 2)
 
 # show joint plot

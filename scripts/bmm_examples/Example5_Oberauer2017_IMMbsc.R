@@ -63,12 +63,12 @@ df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>%
 
 # set up mixture model
 ff <- bf(devRad ~ 1,
-  # fixed intercept & random slope: precision of memory distributions
-  kappa ~ 0 + SetSize + (0 + SetSize || ID),
-  # fixed intercept & random slope: context activation
-  c ~ 0 + SetSize + (0 + SetSize || ID),
-  # fixed intercept & random slope: general activation
-  s ~ 0 + SetSize + (0 + SetSize || ID))
+         # fixed intercept & random slope: precision of memory distributions
+         kappa ~ 0 + SetSize + (0 + SetSize || ID),
+         # fixed intercept & random slope: context activation
+         c ~ 0 + SetSize + (0 + SetSize || ID),
+         # fixed intercept & random slope: general activation
+         s ~ 0 + SetSize + (0 + SetSize || ID))
 
 filename_IMMbsc <- "fit_E5_OL2017_IMMbsc.RData"
 if (!file.exists(here("output",filename_IMMbsc))) {
@@ -119,13 +119,11 @@ fixedEff <- fixef(fit_IMMbsc_mixMod)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
-a_rows <- grepl("a_",rownames(fixedEff)) & !grepl("kappa_",rownames(fixedEff))
-s_rows <- grepl("logS_",rownames(fixedEff))
+s_rows <- grepl("s_",rownames(fixedEff))
 kappa_rows <- grepl("kappa_",rownames(fixedEff))
 
 # extract kappa estimates
 c_fixedFX <- fixedEff[c_rows,]
-a_fixedFX <- fixedEff[a_rows,]
 s_fixedFX <- fixedEff[s_rows,]
 kappa_fixedFX <- fixedEff[kappa_rows,]
 
@@ -135,21 +133,12 @@ kappa_fixedFX <- exp(kappa_fixedFX)
 # print out parameter estimates
 kappa_fixedFX
 exp(c_fixedFX)
-exp(a_fixedFX)
+exp(s_fixedFX)
 
 ## plot parameter estimates -----------------------------------------------
-results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
-                              header = T, sep = ",") %>%
-  filter(param != "catActive") %>%
-  mutate(RI = retention,
-         nCues = case_when(cueCond == "NoCue" ~ 0,
-                           cueCond == "RetroCue" & RI == "short" ~ 1,
-                           cueCond == "RetroCue" & RI == "long" ~ 2),
-         ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Young"))
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMMabc_mixMod %>%
+fixedFX_draws <- fit_IMMbsc_mixMod %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
@@ -159,7 +148,7 @@ fixedFX_draws <- fit_IMMabc_mixMod %>%
          setsize = str_split_i(modelPar,"_",3),
          setsize = str_remove(setsize, "SetSize")) %>%
   select(-modelPar) %>%
-  filter(par %in% c("c","a","logS","kappa")) %>%
+  filter(par %in% c("c","a","s","kappa")) %>%
   mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
                                     TRUE ~ postSample))
 
@@ -204,11 +193,9 @@ plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   clean_plot()
 
 # plot pMem results
-plot_a_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
+plot_s_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "1"),
                         aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,2)) +
-  geom_hline(yintercept = exp(0), color ="firebrick", 
-             linetype = "dotted", linewidth = 1) +
+  coord_cartesian(ylim = c(0,25)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, 
@@ -229,7 +216,7 @@ plot_a_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "
 
 
 # patch plots together
-joint_plot <-   plot_c_IMMbsc + plot_a_IMMbsc + plot_kappa_IMMbsc +
+joint_plot <-   plot_c_IMMbsc + plot_s_IMMbsc + plot_kappa_IMMbsc +
   plot_layout(ncol = 3)
 
 # show joint plot
@@ -237,6 +224,6 @@ joint_plot
 
 # save plots with high resolution
 ggsave(
-  filename = here("figures","plotAll_OL2017_IMMabc.jpeg"),
+  filename = here("figures","plotAll_OL2017_IMMbsc.jpeg"),
   plot = joint_plot, width = 4*3, height = 4
 )
