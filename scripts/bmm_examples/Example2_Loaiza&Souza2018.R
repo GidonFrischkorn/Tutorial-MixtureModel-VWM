@@ -207,44 +207,48 @@ fixedFX_draws <- fit_LS2018_mixModel %>%
 
 # plot kappa results
 kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
-                     aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
+                     aes(x = RI, y = postSample_abs, 
+                         color = as.factor(nCues), shape = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
   coord_cartesian(ylim = c(5,50)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi,
-               size = 0.3, linewidth = 0.8,
+  stat_summary(geom = "pointrange", fun.data = mean_hdci,
+               size = 0.7, linewidth = 0.8,
                position = position_dodge(0.1)) +
   geom_point(data = results_LS_2018 %>% filter(param == "contSD"), 
              aes(y = mean, x = RI, color = as.factor(nCues)),
-             shape = "diamond", size = 2.5,
+             shape = "diamond", size = 3,
              position = position_nudge(x = -.1, y = 0)) +
-  scale_fill_grey(start = 0, end = .8) +
-  scale_color_grey(start = 0, end = .8) +
-  labs(x = "Retention Interval", y = "Memory imprecision (SD)", fill = "No. of Cues", color = "No. of Cues",
+  scale_fill_grey(start = 0, end = .7) +
+  scale_color_grey(start = 0, end = .7) +
+  labs(x = "Retention Interval", y = "Memory imprecision (SD)", 
+       fill = "No. of Cues", color = "No. of Cues", shape = "No. of Cues",
        title = "B") +
-  #guides(color = "none", size = FALSE) +
+  guides(color = "none", shape = "none") +
   clean_plot()
 kappa_plot
 
 # plot pMem results
 pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
-                    aes(x = RI, y = postSample_abs, color = as.factor(nCues))) +
+                    aes(x = RI, y = postSample_abs, 
+                        color = as.factor(nCues), shape = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
-  theme(legend.position = c(0.25, 0.8)) +
+  theme(legend.position = c(0.2, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
                    adjust = 1.2, trim = FALSE, alpha = 0.9, colour = NA, show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mean_hdi,
-               size = 0.3, linewidth = 0.8,
+  stat_summary(geom = "pointrange", fun.data = mean_hdci,
+               size = 0.7, linewidth = 0.8,
                position = position_dodge(0.1)) +
   geom_point(data = results_LS_2018 %>% filter(param == "pMem"), 
              aes(y = mean, x = RI, color = as.factor(nCues)),
-             shape = "diamond", size = 2.5,
+             shape = "diamond", size = 3,
              position = position_nudge(x = -.1, y = 0)) +
-  scale_fill_grey(start = 0, end = 0.8) +
-  scale_color_grey(start = 0, end = 0.8) +
-  labs(x = "Retention Interval", y = expression(P[mem]), fill = "No. of Cues", color = "No. of Cues",
+  scale_fill_grey(start = 0, end = 0.7) +
+  scale_color_grey(start = 0, end = 0.7) +
+  labs(x = "Retention Interval", y = expression(P[mem]), 
+       color = "No. of Cues", shape = "No. of Cues",
        title = "A") +
   clean_plot()
 pMem_plot
@@ -267,5 +271,5 @@ ggsave(
 
 ggsave(
   filename = here("figures/plot_jointRes_LS2018.jpeg"),
-  plot = joint_plot, width = 6*2, height = 6
+  plot = joint_plot, width = 5*2, height = 5
 )

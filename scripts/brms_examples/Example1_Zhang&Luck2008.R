@@ -140,7 +140,13 @@ if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
 
 ## 4.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_ZL_mixModel)
+pp_Plot <- pp_check(fit_ZL_mixModel)
+pp_Plot <- pp_Plot +
+  theme(axis.text = element_text(size = 16),
+        legend.text = element_text(size = 16))
+
+ggsave(filename = here("figures/postPredPlot_ZL2008.jpeg"),
+       plot = pp_Plot, width = 6, height = 4)
 
 # print results summary
 summary(fit_ZL_mixModel)

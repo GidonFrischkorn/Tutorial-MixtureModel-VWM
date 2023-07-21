@@ -181,13 +181,13 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
   coord_cartesian(ylim = c(5,45)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                    alpha = 0.9, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
-               size = 0.3, linewidth = 0.8,
-               position = position_dodge(0.1)) +
+  stat_summary(geom = "pointrange", fun.data = mean_hdci, color = "black",
+               size = 0.7, linewidth = 0.8,
+               position = position_dodge(0.2)) +
   geom_point(data = results_ZL2008,
              aes(y = sdMen, x = cond), color = "black",
-             shape = "diamond", size = 2.5,
-             position = position_nudge(x = .1, y = 0)) +
+             shape = "diamond", size = 4,
+             position = position_nudge(x = .15, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Memory imprecision (SD)", title = "B") +
@@ -200,13 +200,13 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
   coord_cartesian(ylim = c(0.2,1.05)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                    alpha = 0.9, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
-               size = 0.3, linewidth = 0.8,
-               position = position_dodge(0.1)) +
+  stat_summary(geom = "pointrange", fun.data = mean_hdci, color = "black",
+               size = 0.7, linewidth = 0.8,
+               position = position_dodge(0.2)) +
   geom_point(data = results_ZL2008,
              aes(y = pMem, x = cond), color = "black",
-             shape = "diamond", size = 2.5,
-             position = position_nudge(x = .1, y = 0)) +
+             shape = "diamond", size = 4,
+             position = position_nudge(x = .15, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = expression(P[mem]), title = "B") +
@@ -231,7 +231,7 @@ ggsave(
 
 ggsave(
   filename = here("figures/plot_jointRes_ZL2008.jpeg"),
-  plot = joint_plot, width = 6*2, height = 6
+  plot = joint_plot, width = 4*2, height = 4
 )
 
 ## 4.4) Test hypothesis --------------------------------------------------------

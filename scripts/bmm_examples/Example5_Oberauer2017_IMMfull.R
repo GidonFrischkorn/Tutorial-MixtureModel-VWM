@@ -176,8 +176,8 @@ plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 
 # plot Context Activation
 plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                         aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,150)) +
+                         aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(0,7)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -192,9 +192,9 @@ plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 
 # plot General Activation parameter
 plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
-                         aes(x = setsize, y = exp(postSample_abs))) +
-  coord_cartesian(ylim = c(0,2)) +
-  geom_hline(yintercept = exp(0), color = "firebrick", 
+                         aes(x = setsize, y = postSample_abs)) +
+  coord_cartesian(ylim = c(-3.5,1)) +
+  geom_hline(yintercept = 0, color = "firebrick", 
              linetype = "dotted", linewidth = 1) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
