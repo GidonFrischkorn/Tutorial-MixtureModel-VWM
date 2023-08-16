@@ -58,10 +58,12 @@ data_Bays2009 <- data_Bays2009 %>%
          Pos_Lure4 = wrap(RespErr-Pos_Lure4),
          Pos_Lure5 = wrap(RespErr-Pos_Lure5),
          setsize = as.factor(setsize)) %>% 
-  select(subID, setsize, RespErr:Pos_Lure5)
+  select(subID, setsize, RespErr:Pos_Lure5) %>% 
+  group_by(subID,setsize) %>% 
+  mutate(trialID = 1:n()) %>%  ungroup()
 
-head(data_Bays2009)
-
+data_Bays2009[is.na(data_Bays2009)] <- 0
+head(data_Bays2009 %>% arrange(subID, trialID))
 #############################################################################!
 # 1) Model specification and estimation                                  ####
 #############################################################################!
@@ -179,7 +181,7 @@ results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
 (sd_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = sd)) +
     geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                      alpha = 0.9, scale = "width") +
-    stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
+    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
                  size = 0.7, linewidth = 0.8,
                  position = position_dodge(0.1)) +
     geom_point(data = results_Bays2009,
@@ -196,7 +198,7 @@ results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
 (pnt_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pnt)) +
     geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                      alpha = 0.9, scale = "width") +
-    stat_summary(geom = "pointrange", fun.data = mean_hdi, color = "black",
+    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
                  size = 0.3, linewidth = 0.8,
                  position = position_dodge(0.1)) +
     geom_point(data = results_Bays2009,
@@ -213,7 +215,7 @@ results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
 (pg_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pg)) +
     geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
                      alpha = 0.9, scale = "width") +
-    stat_summary(geom = "pointrange", fun.data = mode_hdi, color = "black",
+    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
                  size = 0.3, linewidth = 0.8,
                  position = position_dodge(0.1)) +
     geom_point(data = results_Bays2009,

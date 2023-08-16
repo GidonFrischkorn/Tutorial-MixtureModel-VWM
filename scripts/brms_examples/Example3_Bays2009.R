@@ -248,7 +248,7 @@ results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
 (sd_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = sd)) +
     geom_half_violin(position = position_nudge(x = .10, y = 0), side = "r", fill = "darkgrey", color = NA,
                      alpha = 0.9, scale = "width") +
-    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
+    stat_summary(geom = "pointrange", fun.data = mean_hdci, color = "black",
                  size = 0.7, linewidth = 0.8,
                  position = position_dodge(0.25)) +
     geom_point(data = results_Bays2009,
@@ -280,7 +280,7 @@ results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
 (pg_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pg)) +
     geom_half_violin(position = position_nudge(x = .10, y = 0), side = "r", fill = "darkgrey", color = NA,
                      alpha = 0.9, scale = "width") +
-    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
+    stat_summary(geom = "pointrange", fun.data = median_hdci, color = "black",
                  size = 0.7, linewidth = 0.8,
                  position = position_dodge(0.25)) +
     geom_point(data = results_Bays2009,
