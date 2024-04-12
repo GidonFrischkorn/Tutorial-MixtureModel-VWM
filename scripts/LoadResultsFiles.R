@@ -10,7 +10,11 @@ Tutorial_project <- osf_retrieve_node("vsrz4")
 
 # Download all missing files to the output folder
 Tutorial_project %>%
-  osf_ls_files(n_max = 20) %>% 
+  osf_ls_files(n_max = 20, pattern = "rds") %>% 
+  osf_download(path = here("output"), conflicts = "skip", verbose = FALSE)
+
+Tutorial_project %>%
+  osf_ls_files(n_max = 20, pattern = "RData") %>% 
   osf_download(path = here("output"), conflicts = "skip", verbose = FALSE)
 
 # Print short message about the files being downloaded
