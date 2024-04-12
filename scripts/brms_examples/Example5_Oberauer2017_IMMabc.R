@@ -25,8 +25,8 @@ source(here("scripts","LoadResultsFiles.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 1000
-postwarmup_samples <- 1000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 4

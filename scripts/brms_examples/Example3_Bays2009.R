@@ -51,13 +51,13 @@ data_Bays2009 <- read.table(here("data/Bays2009.txt"), header = T) %>%
     LureIdx4 = case_when(setsize >= 5 ~ 1, TRUE ~ 0),
     LureIdx5 = case_when(setsize >= 6 ~ 1, TRUE ~ 0),
     # recode lures to be relative to target
-    Pos_Lure1 = wrap(RespErr-Pos_Lure1),
-    Pos_Lure2 = wrap(RespErr-Pos_Lure2),
-    Pos_Lure3 = wrap(RespErr-Pos_Lure3),
-    Pos_Lure4 = wrap(RespErr-Pos_Lure4),
-    Pos_Lure5 = wrap(RespErr-Pos_Lure5),
+    Pos_Lure1 = wrap(RespErr - Pos_Lure1),
+    Pos_Lure2 = wrap(RespErr - Pos_Lure2),
+    Pos_Lure3 = wrap(RespErr - Pos_Lure3),
+    Pos_Lure4 = wrap(RespErr - Pos_Lure4),
+    Pos_Lure5 = wrap(RespErr - Pos_Lure5),
     # variable to include in formula as a correction to theta due to setsize
-    inv_ss = 1/(setsize-1),
+    inv_ss = 1/(setsize - 1),
     inv_ss = ifelse(is.infinite(inv_ss), 1, inv_ss),
     setsize = as.factor(setsize)) %>% 
     select(subID,trial,setsize,RespErr,
@@ -70,7 +70,6 @@ head(data_Bays2009[sample(1:nrow(data_Bays2009),6),])
 ###############################################################################!
 # 2) BRMS fit ------------------------------------------------------------------
 ###############################################################################!
-
 
 # create mixture of von Mises distributions
 Bays_mixModel <- mixture(von_mises(link = "identity"),
@@ -117,7 +116,6 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             # for brms to process this formula correclty, set non-linear to TRUE
                             nl = TRUE)
 
-
 # check default priors
 get_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
 
@@ -132,7 +130,7 @@ Bays_mixModel_priors <-
   prior(normal(5.0, 0.8), class = b, nlpar = "kappa") +
   prior(logistic(0, 1), class = b, nlpar = "thetat") +
   prior(logistic(0, 1), class = b, nlpar = "thetant") +
-  prior(constant(-100), class = b, coef="setsize1", nlpar="thetant")
+  prior(constant(-100), class = b, coef = "setsize1", nlpar = "thetant")
 
 # if the model has been already estimated, load the results, otherwise estimate it
 filename <- 'output/fit_bays2009_3p_model.RData'
@@ -192,9 +190,9 @@ kappa <- fixedEff[grepl("kappa_",rownames(fixedEff)),]
 # transform parameters because brms uses special link functions
 kappa <- exp(kappa)
 sd <- k2sd(kappa[,1]) 
-pmem <- exp(thetat)/(exp(thetat)+exp(thetant)+exp(0))
-pnt <- exp(thetant)/(exp(thetat)+exp(thetant)+exp(0))
-pg <- exp(0)/(exp(thetat)+exp(thetant)+exp(0))
+pmem <- exp(thetat)/(exp(thetat) + exp(thetant) + exp(0))
+pnt <- exp(thetant)/(exp(thetat) + exp(thetant) + exp(0))
+pg <- exp(0)/(exp(thetat) + exp(thetant) + exp(0))
 
 # print parameter estimates
 kappa
@@ -230,9 +228,9 @@ fixedFX_draws <- fit_Bays_mixMod %>%
   filter(par %in% c('kappa','thetat','thetant')) %>%
   spread(par, postSample) %>% 
   mutate(sd = k2sd(exp(kappa))/pi * 180,
-         pmem = exp(thetat)/(exp(thetat)+exp(thetant)+exp(0)),
-         pnt = exp(thetant)/(exp(thetat)+exp(thetant)+exp(0)),
-         pg = 1-pmem-pnt,
+         pmem = exp(thetat)/(exp(thetat) + exp(thetant) + exp(0)),
+         pnt = exp(thetant)/(exp(thetat) + exp(thetant) + exp(0)),
+         pg = 1 - pmem - pnt,
          setsize = str_remove_all(cond,"setsize"))
 
 # results from the published paper
@@ -242,7 +240,7 @@ results_Bays2009 <- data.frame(
   pg = c(0.01,0.05,0.16,0.14),
   sd = c(13.5,18,22.5,24.5)
 )
-results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
+results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
 
 # plot sd results
 (sd_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = sd)) +

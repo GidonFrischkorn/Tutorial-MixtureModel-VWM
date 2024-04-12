@@ -6,11 +6,10 @@ clean_plot <- function(...){
                       axis.line.x = element_line(color = 'black'),
                       axis.line.y = element_line(color = 'black'),
                       legend.key = element_rect(fill = 'white'),
-                      text = element_text(size = 15),
+                      text = element_text(size = 18),
                       line = element_line(linewidth = 1),
                       axis.ticks = element_line(linewidth = 1),
                       ...)
-  
   return(clean_plot)
 }
 

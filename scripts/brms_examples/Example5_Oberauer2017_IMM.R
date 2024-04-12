@@ -24,8 +24,8 @@ source(here("scripts","LoadResultsFiles.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 1000
-postwarmup_samples <- 1000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 4
@@ -217,16 +217,6 @@ exp(a_fixedFX)
 s_fixedFX
 
 ## 3.3) plot parameter estimates -----------------------------------------------
-results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
-                              header = T, sep = ",") %>%
-  filter(param != "catActive") %>%
-  mutate(RI = retention,
-         nCues = case_when(cueCond == "NoCue" ~ 0,
-                           cueCond == "RetroCue" & RI == "short" ~ 1,
-                           cueCond == "RetroCue" & RI == "long" ~ 2),
-         ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Young"))
-
 # extract posterior draws for fixed effects on kappa & theta
 fixedFX_draws <- fit_IMM_mixMod %>%
   tidy_draws() %>%

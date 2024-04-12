@@ -27,8 +27,8 @@ source(here("scripts","LoadResultsFiles.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 3000
-postwarmup_samples <- 3000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 6
@@ -121,7 +121,8 @@ if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
     
     # control commands for the sampler
     control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
+                   max_treedepth = max_treedepth),
+    backend = "rstan"
   )
   
   # save results into file
@@ -144,6 +145,7 @@ pp_Plot <- pp_check(fit_ZL_mixModel)
 pp_Plot <- pp_Plot +
   theme(axis.text = element_text(size = 16),
         legend.text = element_text(size = 16))
+pp_Plot
 
 ggsave(filename = here("figures/postPredPlot_ZL2008.jpeg"),
        plot = pp_Plot, width = 6, height = 4)
@@ -157,8 +159,8 @@ summary(fit_ZL_mixModel)
 fixedEff <- fixef(fit_ZL_mixModel)
 
 # determine the rows that contain the relevant parameter estimates
-theta_cols <- grepl("theta",rownames(fixedEff))
-kappa_cols <- grepl("kappa1",rownames(fixedEff))
+theta_cols <- startsWith(rownames(fixedEff),"theta")
+kappa_cols <- startsWith(rownames(fixedEff),"kappa1")
 
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]

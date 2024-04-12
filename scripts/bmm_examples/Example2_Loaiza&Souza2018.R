@@ -6,7 +6,8 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, emmeans, gghalves)
+pacman::p_load_gh("venpopov/bmm")
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -74,10 +75,17 @@ levels(wmData$ageGroup) <- c("Young","Old")
 levels(wmData$RI) <- c("short","long")
 levels(wmData$cueCond) <- c("No","Retro")
 
+# specfiy contrasts
+contrasts(wmData$ageGroup) <- bayestestR::contr.equalprior(2)
+contrasts(wmData$RI) <- bayestestR::contr.equalprior(2)
+contrasts(wmData$cueCond) <- bayestestR::contr.equalprior(2)
+
 ###############################################################################!
 # 2) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
+# set up the bmmodel object
+LS_model <- mixture2p(resp_error = "dev_rad")
 
 #' set up the formula for the mixture model.
 #' Although, we do not want to estimate the mean of the two von Mises distributions,
@@ -85,75 +93,98 @@ levels(wmData$cueCond) <- c("No","Retro")
 #' Using priors (see step 3), we will constrain the means of both von Mises distributions
 #' to zero. Additionally, we will use priors to fix the precision (kappa) of the
 #' second von Mises to be zero (at least practically zero). 
-LS_mixFormula_bmm <- bf(
-  # Initializing the dependent variable
-  dev_rad ~ 1,
-  
+LS_formula <- bmf(
   # estimating fixed intercept & random intercept for kappa of the first von Mises
-  kappa ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup)), 
+  kappa ~ 0 + ageGroup + ageGroup:RI + ageGroup:cueCond + ageGroup:RI:cueCond  + 
+    (0 + RI + cueCond + RI:cueCond || gr(id, by = ageGroup)), 
   
   # estimating fixed intercept & random intercept for the mixing proportion 
   # of the target vonMises (i.e., p_mem)
-  thetat ~ 0 + ageGroup:RI:cueCond + (0 + RI:cueCond || gr(id, by = ageGroup))
+  thetat ~ 0 + ageGroup + ageGroup:RI + ageGroup:cueCond + ageGroup:RI:cueCond  + 
+    (0 + RI + cueCond + RI:cueCond || gr(id, by = ageGroup))
 )
 
-# constrain parameters using priors
-mixPriors <- prior(normal(0,0.5), class = "b", dpar = "theta1") +
-  prior(normal(0,0.5), class = "b", dpar = "kappa1")
+# check the default priors
+default_prior(LS_formula, data = wmData, model = LS_model)
+
+prior <- 
 
 # fit mixture model if there is not already a results file stored
-if (!file.exists(here("output","fit_E2_LS2018.RData"))) {
-  # fit the mixture model using brms
-  fit_LS2018_mixModel <- fit_model(
-    # include model information
-    formula = LS_mixFormula_bmm, # specify formula for mixture model
-    data    = wmData, # specify data used to estimate the mixture model
-    model_type = "2p",
-    prior   = mixPriors, # use the used defined priors,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+LS2018_fit <- bmm(
+  # include model information
+  formula = LS_formula, # specify formula for mixture model
+  data    = wmData, # specify data used to estimate the mixture model
+  model = LS_model,
   
-  # save results into file
-  save(fit_LS2018_mixModel, 
-       file = here("output","fit_E2_LS2018.RData"),
-       compress = "xz")
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
   
-} else {
-  # load results file
-  load(file = here("output","fit_E2_LS2018.RData"))
-}
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save the results
+  file = here("output","fit_E2_LS2018_bmm")
+)
+
+###############################################################################!
+# 3) Model evaluation ----------------------------------------------------------
+###############################################################################!
+
 
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_LS2018_mixModel)
+brms::pp_check(LS2018_fit, group = "RI")
 
 # print results summary
-summary(fit_LS2018_mixModel)
+summary(LS2018_fit)
 
 # test hypothesis
-hypothesis(fit_LS2018_mixModel,
-           c(hyp1 = "theta1_ageGroupYoung:RIshort:cueCondNo > theta1_ageGroupOld:RIshort:cueCondNo"))
+cue_hypothesis <- c(
+  kp_cueFX_younger = "kappa_ageGroupYoung:cueCond1 = 0",
+  kp_cueFX_older =  "kappa_ageGroupOld:cueCond1 = 0",
+  pM_cueFX_younger = "thetat_ageGroupYoung:cueCond1 = 0",
+  pM_cueFX_older = "thetat_ageGroupOld:cueCond1 = 0"
+)
+
+hypothesis(LS2018_fit, cue_hypothesis)
+
+hyp_cue <- hypothesis(LS2018_fit, cue_hypothesis)
+
+1/hyp_cue$hypothesis$Evid.Ratio
+
+age_hypothesis <- c(
+  kp_age = "kappa_ageGroupYoung = kappa_ageGroupOld",
+  pM_age = "thetat_ageGroupYoung = thetat_ageGroupOld"
+)
+hyp_age <- hypothesis(LS2018_fit, age_hypothesis)
+1/hyp_age$hypothesis$Evid.Ratio
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
+conditions <- expand.grid(
+  ageGroup = levels(wmData$ageGroup),
+  RI = levels(wmData$RI),
+  cueCond = levels(wmData$cueCond)
+)
+
+FX_pM <- conditional_effects(LS2018_fit, dpar = "theta1", conditions = conditions)
+plot(FX_pM)
+conditional_effects(LS2018_fit, dpar = "kappa1")
+
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_LS2018_mixModel)
+fixedEff <- fixef(LS2018_fit)
 
 # determine the rows that contain the relevant parameter estimates
-theta_cols <- grepl("theta",rownames(fixedEff))
-kappa_cols <- grepl("kappa1",rownames(fixedEff))
+theta_cols <- grepl("thetat",rownames(fixedEff))
+kappa_cols <- grepl("kappa",rownames(fixedEff))
 
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]
@@ -171,6 +202,7 @@ p_Mem_fixedFX <- gtools::inv.logit(theta_fixedFX)
 kappa_fixedFX
 p_Mem_fixedFX
 
+
 ## 3.3) plot parameter estimates -----------------------------------------------
 results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                               header = T, sep = ",") %>% 
@@ -179,38 +211,101 @@ results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
          nCues = case_when(cueCond == "NoCue" ~ 0,
                            cueCond == "RetroCue" & RI == "short" ~ 1,
                            cueCond == "RetroCue" & RI == "long" ~ 2),
-         ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Young"))
+         ageGroup = case_when(BP_Group == "Old" ~ "old",
+                              TRUE ~ "young"))
+
+
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_LS2018_mixModel %>% 
+fixedFX_draws <- LS2018_fit %>% 
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>% 
-  pivot_longer(cols = starts_with("b_"),
+  mutate(kappa_old_short_no = b_kappa_ageGroupOld + 
+           contrasts(wmData$RI)["short",] * `b_kappa_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupOld:RI1:cueCond1`,
+         kappa_old_short_retro = b_kappa_ageGroupOld + 
+           contrasts(wmData$RI)["short",] * `b_kappa_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupOld:RI1:cueCond1`,
+         kappa_old_long_no = b_kappa_ageGroupOld + 
+           contrasts(wmData$RI)["long",] * `b_kappa_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupOld:RI1:cueCond1`,
+         kappa_old_long_retro = b_kappa_ageGroupOld + 
+           contrasts(wmData$RI)["long",] * `b_kappa_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupOld:RI1:cueCond1`,
+         kappa_young_short_no = b_kappa_ageGroupYoung + 
+           contrasts(wmData$RI)["short",] * `b_kappa_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupYoung:RI1:cueCond1`,
+         kappa_young_short_retro = b_kappa_ageGroupYoung + 
+           contrasts(wmData$RI)["short",] * `b_kappa_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupYoung:RI1:cueCond1`,
+         kappa_young_long_no = b_kappa_ageGroupYoung + 
+           contrasts(wmData$RI)["long",] * `b_kappa_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["No",] * `b_kappa_ageGroupYoung:RI1:cueCond1`,
+         kappa_young_long_retro = b_kappa_ageGroupYoung + 
+           contrasts(wmData$RI)["long",] * `b_kappa_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["Retro",] * `b_kappa_ageGroupYoung:RI1:cueCond1`,
+         thetat_old_short_no = b_thetat_ageGroupOld + 
+           contrasts(wmData$RI)["short",] * `b_thetat_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupOld:RI1:cueCond1`,
+         thetat_old_short_retro = b_thetat_ageGroupOld + 
+           contrasts(wmData$RI)["short",] * `b_thetat_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupOld:RI1:cueCond1`,
+         thetat_old_long_no = b_thetat_ageGroupOld + 
+           contrasts(wmData$RI)["long",] * `b_thetat_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupOld:RI1:cueCond1`,
+         thetat_old_long_retro = b_thetat_ageGroupOld + 
+           contrasts(wmData$RI)["long",] * `b_thetat_ageGroupOld:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupOld:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupOld:RI1:cueCond1`,
+         thetat_young_short_no = b_thetat_ageGroupYoung + 
+           contrasts(wmData$RI)["short",] * `b_thetat_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupYoung:RI1:cueCond1`,
+         thetat_young_short_retro = b_thetat_ageGroupYoung + 
+           contrasts(wmData$RI)["short",] * `b_thetat_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["short",] * contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupYoung:RI1:cueCond1`,
+         thetat_young_long_no = b_thetat_ageGroupYoung + 
+           contrasts(wmData$RI)["long",] * `b_thetat_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["No",] * `b_thetat_ageGroupYoung:RI1:cueCond1`,
+         thetat_young_long_retro = b_thetat_ageGroupYoung + 
+           contrasts(wmData$RI)["long",] * `b_thetat_ageGroupYoung:RI1` +
+           contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupYoung:cueCond1` +
+           contrasts(wmData$RI)["long",] * contrasts(wmData$cueCond)["Retro",] * `b_thetat_ageGroupYoung:RI1:cueCond1`) %>% 
+  select(.chain,.iteration,.draw, starts_with("kappa"), starts_with("thetat")) %>% 
+  pivot_longer(cols = c(starts_with("kappa"), starts_with("thetat")),
                names_to = "modelPar",
                values_to = "postSample") %>% 
-  mutate(par = str_split_i(modelPar,"_",2),
-         conds = str_split_i(modelPar,"_",3),
-         ageGroup = str_split_i(conds,":",1),
-         RI = str_split_i(conds,":",2),
-         RetroCue = str_split_i(conds,":",3),
-         ageGroup = str_remove(ageGroup,"ageGroup"),
-         RI = str_remove(RI,"RI"),
-         RetroCue = str_remove(RetroCue,"cueCond")) %>% 
-  select(-modelPar, -conds) %>% 
-  filter(par == "kappa1" | par == "theta1") %>% 
-  mutate(postSample_abs = case_when(par == "kappa1" ~ (sqrt(1/exp(postSample))/pi) * 180,
-                                    par == "theta1" ~ inv_logit_scaled(postSample)),
-         nCues = case_when(RetroCue == "No" ~ 0,
-                           RetroCue == "Retro" & RI == "short" ~ 1,
-                           RetroCue == "Retro" & RI == "long" ~ 2))
+  mutate(par = str_split_i(modelPar,"_",1),
+         ageGroup = str_split_i(modelPar,"_",2),
+         RI = str_split_i(modelPar,"_",3),
+         RetroCue = str_split_i(modelPar,"_",4)) %>% 
+  select(-modelPar) %>% 
+  filter(par == "kappa" | par == "thetat") %>% 
+  mutate(postSample_abs = case_when(par == "kappa" ~ (sqrt(1/exp(postSample))/pi) * 180,
+                                    par == "thetat" ~ inv_logit_scaled(postSample)),
+         nCues = case_when(RetroCue == "no" ~ 0,
+                           RetroCue == "retro" & RI == "short" ~ 1,
+                           RetroCue == "retro" & RI == "long" ~ 2))
 
 # plot kappa results
-kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
+kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
                      aes(x = RI, y = postSample_abs, 
                          color = as.factor(nCues), shape = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
-  coord_cartesian(ylim = c(5,50)) +
+  coord_cartesian(ylim = c(10,35)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), aes(fill = as.factor(nCues)), side = "r",
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mean_hdci,
@@ -230,7 +325,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
 kappa_plot
 
 # plot pMem results
-pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
+pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "thetat"),
                     aes(x = RI, y = postSample_abs, 
                         color = as.factor(nCues), shape = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +

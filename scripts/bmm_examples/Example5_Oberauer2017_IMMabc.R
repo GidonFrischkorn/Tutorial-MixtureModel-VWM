@@ -12,7 +12,8 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
+pacman::p_load_gh("venpopov/bmm")
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -41,72 +42,59 @@ adapt_delta <- .95
 max_treedepth <- 10
 
 # read in data for Experiment 2 from Oberauer & Lin (2017)
-df_OberauerLin2017_E1 <- read.table(here("data","OberauerLin2017_IM","colorwheel9.dat"))
-colnames(df_OberauerLin2017_E1) <- c(
-  "ID","Session","Trial","TrialAlt","SetSize",
-  "Item1_Col","Item1_Pos","Item2_Col","Item2_Pos","Item3_Col","Item3_Pos","Item4_Col","Item4_Pos",
-  "Item5_Col","Item5_Pos","Item6_Col","Item6_Pos","Item7_Col","Item7_Pos","Item8_Col","Item8_Pos",
-  "Response"
-)
-
-# compute relevant variables for estimating the 3-parameter mixture modelpo
-df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>% 
-  mutate(deviation = (Response - Item1_Col),
-         devRad = bmm::wrap(deviation * pi / 180),
-         across(ends_with("_Col"), ~ bmm::wrap((.x- Item1_Col)*pi/180) , .names = "{.col}_rad"),
-         across(ends_with("_Pos"), ~ abs(bmm::wrap(2*pi*((.x - Item1_Pos)/13))),.names = "{.col}_rad"),
-         SetSize = as.factor(SetSize))
+data <- oberauer_lin_2017
 
 ###############################################################################!
 # Fit IMMabc ----------------------------------------------------------------
 ###############################################################################!
 
+imm_abc_model <- imm(resp_error = "dev_rad",
+                     nt_features = "col_nt", regex = TRUE,
+                     set_size = "set_size",
+                     version = "abc")
+
 ## Estimate pars for IMMabc ------------------------------------------------
 # set up mixture model
-ff <- bf(devRad ~ 1,
+imm_abc_formula <- bmf(
   # fixed intercept & random slope: precision of memory distributions
-  kappa ~ 0 + SetSize + (0 + SetSize || ID),
+  kappa ~ 0 + set_size + (0 + set_size || ID),
   # fixed intercept & random slope: context activation
-  c ~ 0 + SetSize + (0 + SetSize || ID),
+  c ~ 0 + set_size + (0 + set_size || ID),
   # fixed intercept & random slope: general activation
-  a ~ 0 + SetSize + (0 + SetSize || ID))
+  a ~ 0 + set_size + (0 + set_size || ID)
+)
 
-filename_IMMabc = "fit_E5_OL2017_IMMabc.RData"
-if (!file.exists(here("output",filename_IMMabc))) {
-  # fit IMM using the brm function
-  fit_IMMabc_mixMod <- bmm::fit_model(
-    formula = ff, 
-    data = df_OberauerLin2017_E1, 
-    model_type = 'IMMabc',
-    non_targets = paste0('Item',2:8,'_Col_rad'),
-    setsize = "SetSize",
-    parallel = T,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+filename_IMMabc = here("output","fit_E5_OL2017_IMMabc")
+
+# fit IMM using the bmm function
+imm_abc_fit <- bmm(
+  model = imm_abc_model,
+  formula = imm_abc_formula, 
+  data = data,
   
-  save(fit_IMMabc_mixMod,
-       file = here("output",filename_IMMabc))
-} else {
-  load(here("output",filename_IMMabc))
-}
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save results to file
+  file = filename_IMMabc
+)
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMMabc_mixMod)
+pp_check(imm_abc_fit)
 
 # print out summary of results
-summary(fit_IMMabc_mixMod)
+summary(imm_abc_fit)
 
 ###############################################################################!
 # Model evaluation ----------------------------------------------------------
@@ -115,7 +103,7 @@ summary(fit_IMMabc_mixMod)
 ## extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMMabc_mixMod)
+fixedEff <- fixef(imm_abc_fit)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -138,26 +126,17 @@ exp(c_fixedFX)
 exp(a_fixedFX)
 
 ## plot parameter estimates -----------------------------------------------
-results_OL_2017 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
-                              header = T, sep = ",") %>%
-  filter(param != "catActive") %>%
-  mutate(RI = retention,
-         nCues = case_when(cueCond == "NoCue" ~ 0,
-                           cueCond == "RetroCue" & RI == "short" ~ 1,
-                           cueCond == "RetroCue" & RI == "long" ~ 2),
-         ageGroup = case_when(BP_Group == "Old" ~ "Old",
-                              TRUE ~ "Young"))
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMMabc_mixMod %>%
+fixedFX_draws <- imm_abc_fit %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
                names_to = "modelPar",
                values_to = "postSample") %>%
   mutate(par = str_split_i(modelPar,"_",2),
-         setsize = str_split_i(modelPar,"_",3),
-         setsize = str_remove(setsize, "SetSize")) %>%
+         setsize = str_split_i(modelPar,"_",4),
+         setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
   filter(par %in% c("c","a","logS","kappa")) %>%
   mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
