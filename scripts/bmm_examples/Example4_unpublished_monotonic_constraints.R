@@ -1,7 +1,5 @@
 #' This is the code for the unconstrained version of Example 4 from the paper We
-#' fit the 2 parameter model without constraining the parameters to be monotonic
-#'
-#' 
+#' fit the 2 parameter model constraining the parameters to be monotonic
 
 #############################################################################!
 # 0) R Setup                                                             ####

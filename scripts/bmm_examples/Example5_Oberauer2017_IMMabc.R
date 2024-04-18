@@ -1,8 +1,9 @@
 #' This is the tutorial script for setting up the Interference Measurement Model (IMMabc)
-#' for visual working memory tasks that use continuous report recall procedures.
+#' for visual working memory tasks that use continuous report recall procedures for the 
+#' data from Oberauer & Lin (2017)
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 

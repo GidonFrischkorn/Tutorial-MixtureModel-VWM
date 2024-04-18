@@ -141,17 +141,6 @@ round(pg, 3)
 
 
 ## 2.3) plot parameter estimates -----------------------------------------------
-# define defaults for clean ggplots
-clean_plot <- theme(panel.grid.major = element_blank(),
-                    panel.grid.minor = element_blank(),
-                    panel.background = element_blank(),
-                    axis.line.x = element_line(color = 'black'),
-                    axis.line.y = element_line(color = 'black'),
-                    legend.key = element_rect(fill = 'white'),
-                    text = element_text(size = 15),
-                    line = element_line(linewidth = 1),
-                    axis.ticks = element_line(linewidth = 1))
-
 # extract brms draws from the posterior distribution
 fixedFX_draws <- fit_bays_2009 %>% 
   tidy_draws() %>%

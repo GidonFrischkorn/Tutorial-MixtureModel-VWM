@@ -2,7 +2,7 @@
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
@@ -196,7 +196,7 @@ plot_s_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "
   #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = "General Activation (a)",
+  labs(x = "Set Size", y = "Generalization Gradient (s)",
        title = "B") +
   guides(color = "none") +
   clean_plot()

@@ -6,7 +6,7 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, emmeans, gghalves)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, bayestestR, gghalves)
 pacman::p_load_gh("venpopov/bmm")
 
 # load function to clean up plots
@@ -75,10 +75,11 @@ levels(wmData$ageGroup) <- c("Young","Old")
 levels(wmData$RI) <- c("short","long")
 levels(wmData$cueCond) <- c("No","Retro")
 
-# specfiy contrasts
-contrasts(wmData$ageGroup) <- bayestestR::contr.equalprior(2)
-contrasts(wmData$RI) <- bayestestR::contr.equalprior(2)
-contrasts(wmData$cueCond) <- bayestestR::contr.equalprior(2)
+# specfiy contrasts that give equal prior width for all condition means
+# for details, see: https://easystats.github.io/bayestestR/reference/contr.equalprior.html
+contrasts(wmData$ageGroup) <- contr.equalprior
+contrasts(wmData$RI) <- contr.equalprior
+contrasts(wmData$cueCond) <- contr.equalprior
 
 ###############################################################################!
 # 2) Model estimation ----------------------------------------------------------
@@ -106,8 +107,6 @@ LS_formula <- bmf(
 
 # check the default priors
 default_prior(LS_formula, data = wmData, model = LS_model)
-
-prior <- 
 
 # fit mixture model if there is not already a results file stored
 LS2018_fit <- bmm(
@@ -157,7 +156,7 @@ cue_hypothesis <- c(
 hypothesis(LS2018_fit, cue_hypothesis)
 
 hyp_cue <- hypothesis(LS2018_fit, cue_hypothesis)
-
+plot(hyp_cue)
 1/hyp_cue$hypothesis$Evid.Ratio
 
 age_hypothesis <- c(

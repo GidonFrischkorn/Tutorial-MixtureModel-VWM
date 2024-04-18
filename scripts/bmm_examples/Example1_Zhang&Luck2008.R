@@ -2,7 +2,7 @@
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
@@ -120,12 +120,12 @@ ZL_fit <- bmm(
 ## 4.1) fit & summary ----------------------------------------------------------
 
 round(max(rhat(ZL_fit), na.rm = T),3)
-neff_ratio(ZL_fit)
+hist(neff_ratio(ZL_fit))
 nuts_params(ZL_fit)
 hist(log_posterior(ZL_fit)$Value)
 
 # plot the posterior predictive check to evaluate overall model fit
-brms::pp_check(ZL_fit, group = "setsize")
+brms::pp_check(ZL_fit)
 
 # quick plot of the conditional effects on the two parameters
 conditional_effects(ZL_fit, effects = "setsize", dpar = "kappa1")
@@ -143,8 +143,8 @@ summary(ZL_fit)
 fixedEff <- fixef(ZL_fit)
 
 # determine the rows that contain the relevant parameter estimates
-theta_cols <- grepl("thetat",rownames(fixedEff))
-kappa_cols <- grepl("kappa",rownames(fixedEff))
+theta_cols <- startsWith(rownames(fixedEff),"thetat_")
+kappa_cols <- startsWith(rownames(fixedEff),"kappa_")
 
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]
@@ -258,12 +258,6 @@ hypothesis(ZL_fit,hyp_ZL2008)
 plot(hypothesis(ZL_fit,hyp_ZL2008))
 
 # 5) Extract brms info from bmm object -----------------
-ZL_mockfit <- bmm(
-  formula = ZL_formula,
-  data = zhang_luck_2008,
-  model = ZL_model,
-  backend = "mock",
-  mock=1, rename = F
-)
-
-brmsformula <- ZL_mockfit$formula
+brmsformula <- ZL_fit$formula
+brmsfamily <- ZL_fit$family
+brmsdata <- ZL_fit$data
