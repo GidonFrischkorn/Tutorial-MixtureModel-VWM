@@ -1,4 +1,4 @@
-#' This is the tutorial script for setting up the Zhang & Luck (2008) mixture model
+ #' This is the tutorial script for setting up the Zhang & Luck (2008) mixture model
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
@@ -261,3 +261,7 @@ plot(hypothesis(ZL_fit,hyp_ZL2008))
 brmsformula <- ZL_fit$formula
 brmsfamily <- ZL_fit$family
 brmsdata <- ZL_fit$data
+
+brmsformula
+brmsfamily
+head(brmsdata)

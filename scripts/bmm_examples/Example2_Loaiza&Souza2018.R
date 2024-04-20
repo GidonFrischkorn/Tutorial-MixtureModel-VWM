@@ -108,6 +108,8 @@ LS_formula <- bmf(
 # check the default priors
 default_prior(LS_formula, data = wmData, model = LS_model)
 
+my_priors <- prior(normal(0,1), class = b, nlpar = thetat)
+
 # fit mixture model if there is not already a results file stored
 LS2018_fit <- bmm(
   # include model information
@@ -116,6 +118,7 @@ LS2018_fit <- bmm(
   model = LS_model,
   
   # save settings
+  prior = my_priors,
   sample_prior = TRUE,
   save_pars = save_pars(all = TRUE),
   
@@ -168,14 +171,8 @@ hyp_age <- hypothesis(LS2018_fit, age_hypothesis)
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
-conditions <- expand.grid(
-  ageGroup = levels(wmData$ageGroup),
-  RI = levels(wmData$RI),
-  cueCond = levels(wmData$cueCond)
-)
-
-FX_pM <- conditional_effects(LS2018_fit, dpar = "theta1", conditions = conditions)
-plot(FX_pM)
+# plot conditional effects
+conditional_effects(LS2018_fit, dpar = "theta1")
 conditional_effects(LS2018_fit, dpar = "kappa1")
 
 # extract the fixed effects from the model

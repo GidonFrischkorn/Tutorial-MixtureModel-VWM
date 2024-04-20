@@ -183,7 +183,7 @@ results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
     scale_color_grey(start = 0, end = .8) +
     coord_cartesian(ylim = c(0,35)) +
     labs(x = "Set Size", y = "Memory imprecision (SD)", title = "A") +
-    clean_plot)
+    clean_plot())
 
 # plot pnt results
 (pnt_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pnt)) +
@@ -200,7 +200,7 @@ results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
     scale_color_grey(start = 0, end = .8) +
     coord_cartesian(ylim = c(0,.5)) +
     labs(x = "Set Size", y = "Non-target responses", title = "B") +
-    clean_plot)
+    clean_plot())
 
 # plot pg results
 (pg_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pg)) +
@@ -217,7 +217,7 @@ results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
     scale_color_grey(start = 0, end = .8) +
     coord_cartesian(ylim = c(0,.5)) +
     labs(x = "Set Size", y = "Random responses", title = "C") +
-    clean_plot)
+    clean_plot())
 
 (sd_plot | pnt_plot | pg_plot)
 
