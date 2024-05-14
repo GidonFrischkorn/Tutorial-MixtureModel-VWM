@@ -1,8 +1,9 @@
-#' This is the tutorial script for setting up the Interference Measurement Model (IMMabc)
-#' for visual working memory tasks that use continuous report recall procedures.
+#' This is the tutorial script for setting up the Three-parameter mixture model (mixture3p)
+#' for visual working memory tasks that use continuous report recall procedures for the 
+#' data from Oberauer & Lin (2017)
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
@@ -12,7 +13,8 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
+pacman::p_load_gh("venpopov/bmm")
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -41,66 +43,60 @@ adapt_delta <- .95
 max_treedepth <- 10
 
 # read in data for Experiment 2 from Oberauer & Lin (2017)
-df_OberauerLin2017_E1 <- read.table(here("data","OberauerLin2017_IM","colorwheel9.dat"))
-colnames(df_OberauerLin2017_E1) <- c(
-  "ID","Session","Trial","TrialAlt","SetSize",
-  "Item1_Col","Item1_Pos","Item2_Col","Item2_Pos","Item3_Col","Item3_Pos","Item4_Col","Item4_Pos",
-  "Item5_Col","Item5_Pos","Item6_Col","Item6_Pos","Item7_Col","Item7_Pos","Item8_Col","Item8_Pos",
-  "Response"
-)
-
-# compute relevant variables for estimating the 3-parameter mixture modelpo
-df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>% 
-  mutate(deviation = (Response - Item1_Col),
-         devRad = bmm::wrap(deviation * pi / 180),
-         across(ends_with("_Col"), ~ bmm::wrap((.x- Item1_Col)*pi/180) , .names = "{.col}_rad"),
-         across(ends_with("_Pos"), ~ abs(bmm::wrap(2*pi*((.x - Item1_Pos)/13))),.names = "{.col}_rad"),
-         SetSize = as.factor(SetSize))
+data <- oberauer_lin_2017
 
 #############################################################################!
-# Fit 3par Mixture model - using bmm functions                         ####
+# 1) Fit 3par Mixture model - using bmm functions                         ####
 #############################################################################!
 
 ## Estimate pars for 3par Mixture Model ------------------------------------
+model_3p <- mixture3p(resp_error = "dev_rad",
+                      nt_features = paste0("col_nt",1:7),
+                      set_size = "set_size")
+
 # formula
-ff <- bf(devRad ~ 1,
-         kappa ~ 0 + SetSize + (0 + SetSize || ID),
-         thetat ~ 0 + SetSize + (0 + SetSize || ID),
-         thetant ~ 0 + SetSize + (0 + SetSize || ID))
+ff <- bmf(kappa ~ 0 + set_size + (0 + set_size || ID),
+          thetat ~ 0 + set_size + (0 + set_size || ID),
+          thetant ~ 0 + set_size + (0 + set_size || ID))
+
+default_prior(ff, model = model_3p, data = data)
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename = "fit_E5_OL2017_3pMM.RData"
-if (!file.exists(here("output",filename))) {
-  fit_3pMM <- bmm::fit_model(
-    formula = ff, 
-    data = df_OberauerLin2017_E1, 
-    model_type = '3p',
-    non_targets = paste0('Item',2:8,'_Col_rad'),
-    setsize = "SetSize",
-    parallel = T,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )  
+filename = here("output","fit_E5_OL2017_3pMM")
+
+fit_3pMM <- bmm(
+  model = model_3p,
+  formula = ff, 
+  data = data, 
   
-  save(fit_3pMM, file = here("output",filename))  
-} else load(here("output",filename))
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save results in file
+  file = filename
+)
 
 # plot the posterior predictive check to evaluate overall model fit
 pp_check(fit_3pMM)
 
 # print out summary of results
 summary(fit_3pMM)
+
+
+###############################################################################!
+# 3) Plot 3par Mixture Model results -----------------------------------------------
+###############################################################################!
 
 ## Plot 3par Mixture Model results -----------------------------------------
 # extract posterior estimates from the model
@@ -111,8 +107,8 @@ draws_3pMM <- fit_3pMM %>%
                names_to = "modelPar",
                values_to = "postSample") %>%
   mutate(par = str_split_i(modelPar,"_",2),
-         setsize = str_split_i(modelPar,"_",3),
-         setsize = str_remove(setsize, "SetSize")) %>%
+         setsize = str_split_i(modelPar,"_",4),
+         setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
   filter(par %in% c("thetat","thetant","kappa")) %>%
   mutate(postSample_abs = case_when(par %in% c("kappa") ~ exp(postSample),

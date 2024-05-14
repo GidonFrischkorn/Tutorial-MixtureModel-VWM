@@ -1,8 +1,8 @@
-#' This is the tutorial script for setting up the Zhang & Luck (2008) mixture model
+ #' This is the tutorial script for setting up the Zhang & Luck (2008) mixture model
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
@@ -15,20 +15,21 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
-
-# load function to clean up plots
-source(here("functions","clean_plot.R"))
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
+pacman::p_load_gh("venpopov/bmm")
 
 # load missing output files
 source(here("scripts","LoadResultsFiles.R"))
+
+# load function to clean up plots
+source(here("functions","clean_plot.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 3000
-postwarmup_samples <- 3000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 6
@@ -48,11 +49,7 @@ max_treedepth <- 12
 ###############################################################################!
 
 # load data file
-data_ZL2008 <- read.table(here("data/Zhang&Luck2008.txt"), header = T) %>% 
-  dplyr::mutate(setsize = as.factor(setsize),
-                # wrap cases smaller than -pi,
-                # or larger than pi around the circle
-                RespErr = bmm::wrap(RespErr))
+data_ZL2008 <- zhang_luck_2008
 
 # have a look at the data and included variables
 head(data_ZL2008)
@@ -60,6 +57,10 @@ head(data_ZL2008)
 ###############################################################################!
 # 2) Model Setup ---------------------------------------------------------------
 ###############################################################################!
+
+#' First, we set up the bmmodel object to specify that we want to fit a two-parameter
+#' mixture model and connect the relevant variables from our data to the model
+ZL_model <- mixture2p(resp_error = "response_error")
 
 #' To reproduce the results from Zhang & Luck (2008), we include setsize
 #' as a within subject predictor.
@@ -69,9 +70,7 @@ head(data_ZL2008)
 #' effect varies over each subject: (0 + setsize || subID)
 #' This is done for both kappa, the precision of the memory distribution,
 #' and thetat, the mixing distribution for target responses, essentially estimating pMem.
-ZL_mixFormula_bmm <- bf(
-  # Initializing the dependent variable
-  RespErr ~ 1,   
+ZL_formula <- bmf(
   # estimating fixed intercept & random intercept for kappa of the first von Mises
   kappa ~ 0 + setsize + (0 + setsize || subID), 
   # estimating fixed intercept & random intercept for the mixing proportion 
@@ -79,64 +78,73 @@ ZL_mixFormula_bmm <- bf(
   thetat ~ 0 + setsize + (0 + setsize || subID)
 )
 
+# We can access the default priors generated for this model using the default_prior function
+default_prior(ZL_formula, data = data_ZL2008, model = ZL_model)
 
 ###############################################################################!
 # 3) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
-# fit mixture model if there is not already a results file stored
-if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
-  # using the fit_model function, we pass the bmm formula for the mixture model
-  # prior specification and other constraints are taken care of within this function
-  # additionally any further arguments for brms can be passed as well
-  fit_ZL_mixModel <- fit_model(
-    formula = ZL_mixFormula_bmm, # specify formula for mixture model
-    data    = data_ZL2008,   # specify data used to estimate the mixture model
-    model_type = "2p", # select the two-parameter model for fitting
-    
-    # save all potentially relevant information
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+# using the bmm function, we pass the bmm formula for the mixture model and
+# the specified bmmodel. All other constraints are taken care of within this function
+# additionally any further arguments for brms can be passed as well
+ZL_fit <- bmm(
+  formula = ZL_formula, # specify formula for mixture model
+  data    = data_ZL2008,   # specify data used to estimate the mixture model
+  model = ZL_model, # select the two-parameter model for fitting
   
-  # save results into file
-  save(fit_ZL_mixModel, 
-       file = here("output/fit_E1_ZL2008.RData"),
-       compress = "xz")
+  # save all potentially relevant information
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
   
-} else {
-  # load results file
-  load(file = here("output/fit_E1_ZL2008.RData"))
-}
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  backend = "cmdstanr",
+  refresh = 100,
+  file = here("output/fit_E1_ZL2008_bmm")
+)
+
 
 ###############################################################################!
 # 4) Model evaluation ----------------------------------------------------------
 ###############################################################################!
 
 ## 4.1) fit & summary ----------------------------------------------------------
+
+round(max(rhat(ZL_fit), na.rm = T),3)
+hist(neff_ratio(ZL_fit))
+nuts_params(ZL_fit)
+hist(log_posterior(ZL_fit)$Value)
+
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_ZL_mixModel)
+brms::pp_check(ZL_fit)
+
+# quick plot of the conditional effects on the two parameters
+conditional_effects(ZL_fit, effects = "setsize", dpar = "kappa1")
+conditional_effects(ZL_fit, effects = "setsize", nlpar = "kappa")
+
+conditional_effects(ZL_fit, effects = "setsize", nlpar = "thetat")
+conditional_effects(ZL_fit, effects = "setsize", dpar = "theta1")
 
 # print results summary
-summary(fit_ZL_mixModel)
+summary(ZL_fit)
 
 ## 4.2) extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_ZL_mixModel)
+fixedEff <- fixef(ZL_fit)
 
 # determine the rows that contain the relevant parameter estimates
-theta_cols <- grepl("theta",rownames(fixedEff))
-kappa_cols <- grepl("kappa1",rownames(fixedEff))
+theta_cols <- startsWith(rownames(fixedEff),"thetat_")
+kappa_cols <- startsWith(rownames(fixedEff),"kappa_")
 
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]
@@ -155,7 +163,7 @@ kappa_fixedFX
 p_Mem_fixedFX
 
 ## 4.3) plot parameter estimates -----------------------------------------------
-fixedFX_draws <- fit_ZL_mixModel %>% 
+fixedFX_draws <- ZL_fit %>% 
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>% 
   pivot_longer(cols = starts_with("b_"),
@@ -164,9 +172,9 @@ fixedFX_draws <- fit_ZL_mixModel %>%
   mutate(par = str_split_i(modelPar,"_",2),
          cond = str_split_i(modelPar,"_",3)) %>% 
   select(-modelPar) %>% 
-  filter(par == "kappa1" | par == "theta1") %>% 
-  mutate(postSample_abs = case_when(par == "kappa1" ~ (sqrt(1/exp(postSample))/pi) * 180,
-                                    par == "theta1" ~ inv_logit_scaled(postSample)),
+  filter(par == "kappa" | par == "thetat") %>% 
+  mutate(postSample_abs = case_when(par == "kappa" ~ (sqrt(1/exp(postSample))/pi) * 180,
+                                    par == "thetat" ~ inv_logit_scaled(postSample)),
          cond = str_remove_all(cond,"setsize"))
 
 results_ZL2008 <- data.frame(
@@ -176,7 +184,7 @@ results_ZL2008 <- data.frame(
 )
 
 # plot kappa results
-kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
+kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
                      aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(5,45)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -195,7 +203,7 @@ kappa_plot <- ggplot(data = fixedFX_draws %>% filter(par == "kappa1"),
 kappa_plot
 
 # plot pMem results
-pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
+pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "thetat"),
                     aes(x = cond, y = postSample_abs)) +
   coord_cartesian(ylim = c(0.2,1.05)) +
   geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
@@ -237,13 +245,23 @@ ggsave(
 ## 4.4) Test hypothesis --------------------------------------------------------
 # specify hypothesis
 hyp_ZL2008 <- c(
-  hyp_kappa_1v2 = "kappa1_setsize1 = kappa1_setsize2",
-  hyp_kappa_2v3 = "kappa1_setsize2 = kappa1_setsize3",
-  hyp_kappa_3v6 = "kappa1_setsize3 = kappa1_setsize6",
-  hyp_theta_1v2 = "theta1_setsize1 = theta1_setsize2",
-  hyp_theta_2v3 = "theta1_setsize2 = theta1_setsize3",
-  hyp_theta_3v6 = "theta1_setsize3 = theta1_setsize6"
+  hyp_kappa_1v2 = "kappa_setsize1 = kappa_setsize2",
+  hyp_kappa_2v3 = "kappa_setsize2 = kappa_setsize3",
+  hyp_kappa_3v6 = "kappa_setsize3 = kappa_setsize6",
+  hyp_theta_1v2 = "thetat_setsize1 = thetat_setsize2",
+  hyp_theta_2v3 = "thetat_setsize2 = thetat_setsize3",
+  hyp_theta_3v6 = "thetat_setsize3 = thetat_setsize6"
 )
 
 # test hypothesis
-hypothesis(fit_ZL_mixModel,hyp_ZL2008)
+hypothesis(ZL_fit,hyp_ZL2008)
+plot(hypothesis(ZL_fit,hyp_ZL2008))
+
+# 5) Extract brms info from bmm object -----------------
+brmsformula <- ZL_fit$formula
+brmsfamily <- ZL_fit$family
+brmsdata <- ZL_fit$data
+
+brmsformula
+brmsfamily
+head(brmsdata)

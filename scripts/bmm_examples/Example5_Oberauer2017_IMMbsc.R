@@ -2,7 +2,7 @@
 #' for visual working memory tasks that use continuous report recall procedures.
 #' 
 #' In this script, you will see:
-#'  1) how the model is set up using the brms package, 
+#'  1) how the model is set up using the bmm package, 
 #'  2) how a simple version of the model is estimates, and 
 #'  3) how the model can be evaluated and results extracted and plotted.
 
@@ -12,7 +12,8 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
+pacman::p_load_gh("venpopov/bmm")
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -41,81 +42,67 @@ adapt_delta <- .95
 max_treedepth <- 10
 
 # read in data for Experiment 2 from Oberauer & Lin (2017)
-df_OberauerLin2017_E1 <- read.table(here("data","OberauerLin2017_IM","colorwheel9.dat"))
-colnames(df_OberauerLin2017_E1) <- c(
-  "ID","Session","Trial","TrialAlt","SetSize",
-  "Item1_Col","Item1_Pos","Item2_Col","Item2_Pos","Item3_Col","Item3_Pos","Item4_Col","Item4_Pos",
-  "Item5_Col","Item5_Pos","Item6_Col","Item6_Pos","Item7_Col","Item7_Pos","Item8_Col","Item8_Pos",
-  "Response"
-)
-
-# compute relevant variables for estimating the 3-parameter mixture modelpo
-df_OberauerLin2017_E1 <- df_OberauerLin2017_E1 %>% 
-  mutate(deviation = (Response - Item1_Col),
-         devRad = bmm::wrap(deviation * pi / 180),
-         across(ends_with("_Col"), ~ bmm::wrap((.x- Item1_Col)*pi/180) , .names = "{.col}_rad"),
-         across(ends_with("_Pos"), ~ abs(bmm::wrap(2*pi*((.x - Item1_Pos)/13))),.names = "{.col}_rad"),
-         SetSize = as.factor(SetSize))
+data <- oberauer_lin_2017
 
 ###############################################################################!
 # Fit IMMbsc ----------------------------------------------------------------
 ###############################################################################!
 
-# set up mixture model
-ff <- bf(devRad ~ 1,
-         # fixed intercept & random slope: precision of memory distributions
-         kappa ~ 0 + SetSize + (0 + SetSize || ID),
-         # fixed intercept & random slope: context activation
-         c ~ 0 + SetSize + (0 + SetSize || ID),
-         # fixed intercept & random slope: general activation
-         s ~ 0 + SetSize + (0 + SetSize || ID))
+imm_bsc_model <- imm(resp_error = "dev_rad",
+                     nt_features = "col_nt", 
+                     nt_distances = "dist_nt", regex = TRUE,
+                     set_size = "set_size",
+                     version = "bsc")
 
-filename_IMMbsc <- "fit_E5_OL2017_IMMbsc.RData"
-if (!file.exists(here("output",filename_IMMbsc))) {
-  # fit IMM using the brm function
-  fit_IMMbsc_mixMod <- fit_model(
-    formula = ff, 
-    data = df_OberauerLin2017_E1, 
-    model_type = 'IMMbsc',
-    non_targets = paste0('Item',2:8,'_Col_rad'),
-    spaPos = paste0('Item',2:8,'_Pos_rad'),
-    setsize = "SetSize",
-    parallel = T,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+# set up mixture model
+imm_bsc_formula <- bmf(# fixed intercept & random slope: precision of memory distributions
+         kappa ~ 0 + set_size + (0 + set_size || ID),
+         # fixed intercept & random slope: context activation
+         c ~ 0 + set_size + (0 + set_size || ID),
+         # fixed intercept & random slope: general activation
+         s ~ 0 + set_size + (0 + set_size || ID))
+
+filename_IMMbsc <- here("output","fit_E5_OL2017_IMMbsc")
+
+imm_bsc_fit <- bmm(
+  model = imm_bsc_model,
+  formula = imm_bsc_formula, 
+  data = data,
   
-  save(fit_IMMbsc_mixMod,
-       file = here("output",filename_IMMbsc))
-} else {
-  load(here("output",filename_IMMbsc))
-}
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save results to file
+  file = filename_IMMbsc
+)
+
+imm_bsc_fit$formula
 
 ###############################################################################!
 # Model evaluation ----------------------------------------------------------
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_IMMbsc_mixMod)
+pp_check(imm_bsc_fit)
 
 # print out summary of results
-summary(fit_IMMbsc_mixMod)
+summary(imm_bsc_fit)
 
 ## extract parameter estimates --------------------------------------------
 
 # extract the fixed effects from the model
-fixedEff <- fixef(fit_IMMbsc_mixMod)
+fixedEff <- fixef(imm_bsc_fit)
 
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
@@ -138,15 +125,15 @@ exp(s_fixedFX)
 ## plot parameter estimates -----------------------------------------------
 
 # extract posterior draws for fixed effects on kappa & theta
-fixedFX_draws <- fit_IMMbsc_mixMod %>%
+fixedFX_draws <- imm_bsc_fit %>%
   tidy_draws() %>%
   select(starts_with("b_"),.chain,.iteration,.draw) %>%
   pivot_longer(cols = starts_with("b_"),
                names_to = "modelPar",
                values_to = "postSample") %>%
   mutate(par = str_split_i(modelPar,"_",2),
-         setsize = str_split_i(modelPar,"_",3),
-         setsize = str_remove(setsize, "SetSize")) %>%
+         setsize = str_split_i(modelPar,"_",4),
+         setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
   filter(par %in% c("c","a","s","kappa")) %>%
   mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
@@ -209,7 +196,7 @@ plot_s_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "
   #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = "General Activation (a)",
+  labs(x = "Set Size", y = "Generalization Gradient (s)",
        title = "B") +
   guides(color = "none") +
   clean_plot()
