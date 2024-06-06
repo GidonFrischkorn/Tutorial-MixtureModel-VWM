@@ -125,7 +125,7 @@ nuts_params(ZL_fit)
 hist(log_posterior(ZL_fit)$Value)
 
 # plot the posterior predictive check to evaluate overall model fit
-brms::pp_check(ZL_fit)
+brms::pp_check(ZL_fit, group = "setsize", type = "dens_overlay_grouped")
 
 # quick plot of the conditional effects on the two parameters
 conditional_effects(ZL_fit, effects = "setsize", dpar = "kappa1")

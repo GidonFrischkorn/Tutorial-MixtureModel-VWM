@@ -99,41 +99,34 @@ ZL_mixPriors <-
 # 3) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
-# fit mixture model if there is not already a results file stored
-if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
-  # using the  model formula. the mixture family, and the mixture priors we can 
-  # now fit the mixture model using brms
-  fit_ZL_mixModel <- brm(
-    # include model information
-    formula = ZL_mixFormula, # specify formula for mixture model
-    data    = data_ZL2008,   # specify data used to estimate the mixture model
-    family  = ZL_mixFamily,  # call the defined mixture family
-    prior   = ZL_mixPriors,  # use the used defined priors,
-    
-    # save all potentially relevant information
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth),
-    backend = "rstan"
-  )
+file_name <- "output/fit_E1_ZL2008"
+
+# using the  model formula. the mixture family, and the mixture priors we can 
+# now fit the mixture model using brms
+fit_ZL_mixModel <- brm(
+  # include model information
+  formula = ZL_mixFormula, # specify formula for mixture model
+  data    = data_ZL2008,   # specify data used to estimate the mixture model
+  family  = ZL_mixFamily,  # call the defined mixture family
+  prior   = ZL_mixPriors,  # use the used defined priors,
   
-  # save results into file
-  save(fit_ZL_mixModel, 
-       file = here("output/fit_E1_ZL2008.RData"),
-       compress = "xz")
+  # save all potentially relevant information
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
   
-} else {
-  # load results file
-  load(file = here("output/fit_E1_ZL2008.RData"))
-}
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  backend = "rstan",
+  
+  file = file_name
+)
+
 
 ###############################################################################!
 # 4) Model evaluation ----------------------------------------------------------

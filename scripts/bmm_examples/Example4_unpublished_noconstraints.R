@@ -77,6 +77,8 @@ fit_popov <- bmm(model = model_2p,
 # 2) Model evaluation                                                    ####
 #############################################################################!
 
+pp_check(fit_popov_prior, group = "setsize", type = "dens_overlay_grouped")
+
 summary(fit_popov)
 
 fixedEff <- fixef(fit_popov)

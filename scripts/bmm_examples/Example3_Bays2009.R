@@ -109,7 +109,7 @@ fit_bays_2009 <- bmm(model = model_bays_2009,
 
 ## 2.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_bays_2009)
+pp_check(fit_bays_2009, group = "setsize", type = "dens_overlay_grouped")
 
 # print resultformula# print results summary. There is 1 divergent transition, but we will ignore it
 # for the purposes of this illustration. For real analyses, follow the suggestions
