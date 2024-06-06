@@ -19,7 +19,7 @@ pacman::p_load_gh("venpopov/bmm")
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-source(here("scripts","LoadResultsFiles.R"))
+# source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -84,7 +84,7 @@ imm_bsc_fit <- bmm(
                  max_treedepth = max_treedepth),
   
   # save results to file
-  file = filename_IMMbsc
+  # file = filename_IMMbsc
 )
 
 imm_bsc_fit$formula
@@ -94,7 +94,7 @@ imm_bsc_fit$formula
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(imm_bsc_fit)
+pp_check(imm_bsc_fit, group = "set_size", type = "dens_overlay_grouped")
 
 # print out summary of results
 summary(imm_bsc_fit)
@@ -136,7 +136,7 @@ fixedFX_draws <- imm_bsc_fit %>%
          setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
   filter(par %in% c("c","a","s","kappa")) %>%
-  mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
+  mutate(postSample_abs = case_when(par %in% c("c","s","kappa") ~ exp(postSample),
                                     TRUE ~ postSample))
 
 # plot kappa results
@@ -161,7 +161,7 @@ plot_kappa_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 
 # plot pMem results
 plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
+                        aes(x = setsize, y = postSample_abs)) +
   coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
@@ -181,7 +181,7 @@ plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 
 # plot pMem results
 plot_s_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "1"),
-                        aes(x = setsize, y = exp(postSample_abs))) +
+                        aes(x = setsize, y = (postSample_abs))) +
   coord_cartesian(ylim = c(0,25)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,

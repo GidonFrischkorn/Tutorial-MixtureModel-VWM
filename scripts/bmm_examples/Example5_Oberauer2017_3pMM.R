@@ -20,7 +20,7 @@ pacman::p_load_gh("venpopov/bmm")
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-source(here("scripts","LoadResultsFiles.R"))
+# source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -88,7 +88,7 @@ fit_3pMM <- bmm(
 )
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_3pMM)
+pp_check(fit_3pMM, group = "set_size", type = "dens_overlay_grouped")
 
 # print out summary of results
 summary(fit_3pMM)

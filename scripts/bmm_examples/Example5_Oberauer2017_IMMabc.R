@@ -20,7 +20,7 @@ pacman::p_load_gh("venpopov/bmm")
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-source(here("scripts","LoadResultsFiles.R"))
+# source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -92,10 +92,29 @@ imm_abc_fit <- bmm(
 )
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(imm_abc_fit)
+pp_check(imm_abc_fit, group = "set_size", type = "dens_overlay_grouped")
 
 # print out summary of results
 summary(imm_abc_fit)
+
+mixture3p_fit <- readRDS(file = here("output","fit_E5_OL2017_3pMM.rds"))
+
+if (!file.exists(here("output","E5_bridge_3p.rds"))) {
+  bridge_3p <- bridge_sampler(mixture3p_fit, repetitions = 10, cores = 4)
+  saveRDS(bridge_3p, file = here("output","E5_bridge_3p.rds"))
+} else {
+  bridge_3p <- readRDS(here("output","E5_bridge_3p.rds"))
+}
+
+if (!file.exists(here("output","E5_bridge_IMMabc.rds"))) {
+  bridge_imm_abc <- bridge_sampler(imm_abc_fit, repetitions = 10, cores = 4)
+  saveRDS(bridge_imm_abc, file = here("output","E5_bridge_IMMabc.rds"))
+} else {
+  bridge_imm_abc <- readRDS(here("output","E5_bridge_IMMabc.rds"))
+}
+
+bf <- bayes_factor(bridge_3p, bridge_imm_abc)
+hist(bf$bf)
 
 ###############################################################################!
 # Model evaluation ----------------------------------------------------------
@@ -139,9 +158,90 @@ fixedFX_draws <- imm_abc_fit %>%
          setsize = str_split_i(modelPar,"_",4),
          setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
-  filter(par %in% c("c","a","logS","kappa")) %>%
-  mutate(postSample_abs = case_when(par %in% c("logS","kappa") ~ exp(postSample),
+  filter(par %in% c("c","a","kappa")) %>%
+  mutate(postSample_abs = case_when(par %in% c("c","a","kappa") ~ exp(postSample),
                                     TRUE ~ postSample))
+
+df_samples_probConversion <- fixedFX_draws %>% 
+  select(-postSample) %>% 
+  pivot_wider(values_from = postSample_abs,
+              names_from = par) %>%
+  mutate(setsize = as.numeric(setsize),
+         Pmem = (c + a)/((c + a) + (setsize-1)*(a) + exp(0)),
+         Pnt = case_when(setsize == 1 ~ 0,
+                         TRUE ~ ((setsize-1)*(a))/((c + a) + (setsize-1)*(a) + exp(0))),
+         Pg = exp(0)/((c + a) + (setsize-1)*(a) + (0)),
+         Ptotal = Pmem + Pnt + Pg)
+
+# plot derived three-parameter mixture parameters
+plot_Pmem <- ggplot(data = df_samples_probConversion,
+       aes(y = Pmem, x = as.factor(setsize))) +
+  coord_cartesian(ylim = c(0,1)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                                                                adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Pmem", fill = "No. of Cues", color = "No. of Cues",
+       title = "A") +
+  guides(color = "none") +
+  clean_plot()
+
+plot_Pnt <- ggplot(data = df_samples_probConversion,
+       aes(y = Pnt, x = as.factor(setsize))) +
+  coord_cartesian(ylim = c(0,1)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Pnt", fill = "No. of Cues", color = "No. of Cues",
+       title = "B") +
+  guides(color = "none") +
+  clean_plot()
+
+plot_Pg <- ggplot(data = df_samples_probConversion,
+       aes(y = Pg, x = as.factor(setsize))) +
+  coord_cartesian(ylim = c(0,1)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Pg", fill = "No. of Cues", color = "No. of Cues",
+       title = "C") +
+  guides(color = "none") +
+  clean_plot()
+
+plot_kappa <- ggplot(data = df_samples_probConversion,
+       aes(y = kappa, x = as.factor(setsize))) +
+  coord_cartesian(ylim = c(0,30)) +
+  geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
+                   adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
+  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+               size = 0.3, linewidth = 0.8,
+               position = position_dodge(0.1)) +
+  scale_fill_grey(start = 0, end = .8) +
+  scale_color_grey(start = 0, end = .8) +
+  labs(x = "Set Size", y = "Memory precision (kappa)", fill = "No. of Cues", color = "No. of Cues",
+       title = "D") +
+  guides(color = "none") +
+  clean_plot()
+
+joint_plot <-   plot_Pmem + plot_Pnt + plot_Pg + plot_kappa +
+  plot_layout(ncol = 2, nrow = 2)
+joint_plot
+
+ggsave(
+  filename = here("figures","plotAll_OL2017_IMMabc_3pPars.jpeg"),
+  plot = joint_plot, width = 6, height = 6
+)
 
 # plot kappa results
 plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
@@ -152,10 +252,6 @@ plot_kappa_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
-  # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),
-  #            aes(y = mean, x = RI, color = as.factor(nCues)),
-  #            shape = "diamond", size = 2.5,
-  #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
   labs(x = "Set Size", y = "Memory precision (kappa)", fill = "No. of Cues", color = "No. of Cues",
@@ -178,6 +274,7 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
+  scale_y_log10() +
   labs(x = "Set Size", y = "Context Activation (c)",
        title = "A") +
   guides(color = "none") +
@@ -186,12 +283,12 @@ plot_c_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 # plot pMem results
 plot_a_IMMabc <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
                         aes(x = setsize, y = postSample_abs)) +
-  #coord_cartesian(ylim = c(-1,0.5)) +
-  geom_hline(yintercept = 0, color ="firebrick", 
+  coord_cartesian(ylim = c(0,2.5)) +
+  geom_hline(yintercept = 1, color ="firebrick",
              linetype = "dotted", linewidth = 1) +
-  geom_half_violin(position = position_nudge(x = .1, y = 0), 
+  geom_half_violin(position = position_nudge(x = .1, y = 0),
                    side = "r", fill = "darkgrey", color = NA,
-                   adjust = 1, trim = TRUE, alpha = 0.9, 
+                   adjust = 1, trim = TRUE, alpha = 0.9,
                    show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
                size = 0.3, linewidth = 0.8,

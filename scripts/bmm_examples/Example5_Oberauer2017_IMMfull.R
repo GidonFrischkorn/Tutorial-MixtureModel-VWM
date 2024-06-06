@@ -96,7 +96,7 @@ imm_full_fit <- bmm(
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(imm_full_fit)
+pp_check(imm_full_fit, group = "set_size", type = "dens_overlay_grouped")
 
 # print out summary of results
 summary(imm_full_fit)

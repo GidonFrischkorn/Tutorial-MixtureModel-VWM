@@ -143,7 +143,7 @@ LS2018_fit <- bmm(
 
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-brms::pp_check(LS2018_fit, group = "RI")
+pp_check(LS2018_fit, group = "cueCond", type = "dens_overlay_grouped")
 
 # print results summary
 summary(LS2018_fit)

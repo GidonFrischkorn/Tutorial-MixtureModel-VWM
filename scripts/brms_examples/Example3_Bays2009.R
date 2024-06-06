@@ -133,38 +133,31 @@ Bays_mixModel_priors <-
   prior(constant(-100), class = b, coef = "setsize1", nlpar = "thetant")
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename <- 'output/fit_bays2009_3p_model.RData'
-if (!file.exists(here(filename))) {
-  # fit the mixture model using brms
-  fit_Bays_mixMod <- brm(
-    # include model information
-    formula = Bays_mixModel_formula, # specify formula for mixture model
-    data    = data_Bays2009, # specify data used to estimate the mixture model
-    family  = Bays_mixModel, # call the defined mixture family
-    prior   = Bays_mixModel_priors, # use the used defined priors,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+filename <- 'output/fit_bays2009_3p_model'
+
+# fit the mixture model using brms
+fit_Bays_mixMod <- brm(
+  # include model information
+  formula = Bays_mixModel_formula, # specify formula for mixture model
+  data    = data_Bays2009, # specify data used to estimate the mixture model
+  family  = Bays_mixModel, # call the defined mixture family
+  prior   = Bays_mixModel_priors, # use the used defined priors,
   
-  # save results into file
-  save(fit_Bays_mixMod, 
-       file = here(filename),
-       compress = "xz")
-} else {
-  # load results file
-  load(file = here(filename))
-}
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  file = filename
+)
 
 #############################################################################!
 # 2) Model evaluation                                                    ####
@@ -200,8 +193,6 @@ sd #in radians
 round(pmem,3)
 round(pnt,3)
 round(pg, 3)
-
-
 
 ## 2.3) plot parameter estimates -----------------------------------------------
 # define defaults for clean ggplots
