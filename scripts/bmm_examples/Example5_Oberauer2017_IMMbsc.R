@@ -18,7 +18,7 @@ pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-# source(here("scripts","LoadResultsFiles.R"))
+source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -161,7 +161,6 @@ plot_kappa_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 # plot pMem results
 plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                         aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -173,6 +172,7 @@ plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
   #            position = position_nudge(x = -.1, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
+  scale_y_log10() +
   labs(x = "Set Size", y = "Context Activation (c)",
        title = "A") +
   guides(color = "none") +
@@ -181,12 +181,12 @@ plot_c_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 # plot pMem results
 plot_s_IMMbsc <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "1"),
                         aes(x = setsize, y = (postSample_abs))) +
-  coord_cartesian(ylim = c(0,25)) +
+  coord_cartesian(ylim = c(0,40)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, 
                    show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+  stat_summary(geom = "pointrange", fun.data = mode_qi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
   # geom_point(data = results_LS_2018 %>% filter(param == "contSD"),

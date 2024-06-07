@@ -16,10 +16,10 @@ graphics.off()  # switch off graphics device
 pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 
 # load function to clean up plots
-# source(here("functions","clean_plot.R"))
+source(here("functions","clean_plot.R"))
 
 # load missing output files
-# source(here("scripts","LoadResultsFiles.R"))
+source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())

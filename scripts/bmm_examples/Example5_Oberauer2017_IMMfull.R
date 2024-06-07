@@ -18,7 +18,7 @@ pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-# source(here("scripts","LoadResultsFiles.R"))
+source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
@@ -163,7 +163,6 @@ plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 # plot Context Activation
 plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                          aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -180,9 +179,8 @@ plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 # plot General Activation parameter
 plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
                          aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,1)) +
-  #geom_hline(yintercept = 0, color = "firebrick", 
-  #           linetype = "dotted", linewidth = 1) +
+  geom_hline(yintercept = 1, color = "firebrick", 
+             linetype = "dotted", linewidth = 1) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, 
@@ -201,12 +199,12 @@ plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != 
 # plot Generalization Gradient
 plot_s_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "s", setsize != "1"),
                          aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,20)) +
+  coord_cartesian(ylim = c(0,50)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, 
                    show.legend = FALSE, scale = "width") +
-  stat_summary(geom = "pointrange", fun.data = mode_hdi,
+  stat_summary(geom = "pointrange", fun.data = mode_qi,
                size = 0.3, linewidth = 0.8,
                position = position_dodge(0.1)) +
   scale_fill_grey(start = 0, end = .8) +
@@ -227,5 +225,5 @@ joint_plot
 # save plots with high resolution
 ggsave(
   filename = here("figures","plotAll_OL2017_IMMfull.jpeg"),
-  plot = joint_plot, width = 4*3, height = 4
+  plot = joint_plot, width = 4*2, height = 4*2
 )
