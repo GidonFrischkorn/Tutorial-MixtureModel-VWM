@@ -13,8 +13,7 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
-pacman::p_load_gh("venpopov/bmm")
+pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -26,8 +25,8 @@ source(here("functions","clean_plot.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 1000
-postwarmup_samples <- 1000
+warmup_samples <- 2000
+postwarmup_samples<- 2000
 
 # specify the number of chains
 nChains <- 4
@@ -97,25 +96,6 @@ pp_check(imm_abc_fit, group = "set_size", type = "dens_overlay_grouped")
 # print out summary of results
 summary(imm_abc_fit)
 
-mixture3p_fit <- readRDS(file = here("output","fit_E5_OL2017_3pMM.rds"))
-
-if (!file.exists(here("output","E5_bridge_3p.rds"))) {
-  bridge_3p <- bridge_sampler(mixture3p_fit, repetitions = 10, cores = 4)
-  saveRDS(bridge_3p, file = here("output","E5_bridge_3p.rds"))
-} else {
-  bridge_3p <- readRDS(here("output","E5_bridge_3p.rds"))
-}
-
-if (!file.exists(here("output","E5_bridge_IMMabc.rds"))) {
-  bridge_imm_abc <- bridge_sampler(imm_abc_fit, repetitions = 10, cores = 4)
-  saveRDS(bridge_imm_abc, file = here("output","E5_bridge_IMMabc.rds"))
-} else {
-  bridge_imm_abc <- readRDS(here("output","E5_bridge_IMMabc.rds"))
-}
-
-bf <- bayes_factor(bridge_3p, bridge_imm_abc)
-hist(bf$bf)
-
 ###############################################################################!
 # Model evaluation ----------------------------------------------------------
 ###############################################################################!
@@ -128,13 +108,11 @@ fixedEff <- fixef(imm_abc_fit)
 # determine the rows that contain the relevant parameter estimates
 c_rows <- grepl("c_",rownames(fixedEff))
 a_rows <- grepl("a_",rownames(fixedEff)) & !grepl("kappa_",rownames(fixedEff))
-s_rows <- grepl("logS_",rownames(fixedEff))
 kappa_rows <- grepl("kappa_",rownames(fixedEff))
 
 # extract kappa estimates
 c_fixedFX <- fixedEff[c_rows,]
 a_fixedFX <- fixedEff[a_rows,]
-s_fixedFX <- fixedEff[s_rows,]
 kappa_fixedFX <- fixedEff[kappa_rows,]
 
 # transform s & kappa from logarithmic to absolute scale

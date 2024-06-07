@@ -12,21 +12,20 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
-pacman::p_load_gh("venpopov/bmm")
+pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
 
 # load missing output files
-source(here("scripts","LoadResultsFiles.R"))
+# source(here("scripts","LoadResultsFiles.R"))
 
 # Set up parallel sampling of mcmc chains
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 1000
-postwarmup_samples <- 1000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 4
@@ -96,7 +95,7 @@ imm_full_fit <- bmm(
 ###############################################################################!
 
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(imm_full_fit, group = "set_size", type = "dens_overlay_grouped")
+pp_check(imm_full_fit)
 
 # print out summary of results
 summary(imm_full_fit)
@@ -142,7 +141,7 @@ fixedFX_draws <- imm_full_fit %>%
          setsize = str_remove(setsize, "size")) %>%
   select(-modelPar) %>%
   filter(par %in% c("c","a","s","kappa")) %>%
-  mutate(postSample_abs = case_when(par %in% c("s","kappa") ~ exp(postSample),
+  mutate(postSample_abs = case_when(par %in% c("c","a","s","kappa") ~ exp(postSample),
                                     TRUE ~ postSample))
 
 # plot kappa results
@@ -164,7 +163,7 @@ plot_kappa_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "kappa"),
 # plot Context Activation
 plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                          aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(0,5)) +
+  coord_cartesian(ylim = c(0,100)) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, show.legend = FALSE, scale = "width") +
   stat_summary(geom = "pointrange", fun.data = mode_hdi,
@@ -172,6 +171,7 @@ plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
                position = position_dodge(0.1)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
+  scale_y_log10() +
   labs(x = "Set Size", y = "Context Activation (c)",
        title = "A") +
   guides(color = "none") +
@@ -180,9 +180,9 @@ plot_c_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "c"),
 # plot General Activation parameter
 plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != "1"),
                          aes(x = setsize, y = postSample_abs)) +
-  coord_cartesian(ylim = c(-3.5,1)) +
-  geom_hline(yintercept = 0, color = "firebrick", 
-             linetype = "dotted", linewidth = 1) +
+  coord_cartesian(ylim = c(0,1)) +
+  #geom_hline(yintercept = 0, color = "firebrick", 
+  #           linetype = "dotted", linewidth = 1) +
   geom_half_violin(position = position_nudge(x = .1, y = 0), 
                    side = "r", fill = "darkgrey", color = NA,
                    adjust = 1, trim = TRUE, alpha = 0.9, 
@@ -192,6 +192,7 @@ plot_a_IMMfull <- ggplot(data = fixedFX_draws %>% filter(par == "a", setsize != 
                position = position_dodge(0.1)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
+ 
   labs(x = "Set Size", y = "General Activation (a)",
        title = "B") +
   guides(color = "none") +

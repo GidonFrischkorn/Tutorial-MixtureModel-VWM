@@ -12,8 +12,7 @@ rm(list = ls()) # clean up work space
 graphics.off()  # switch off graphics device
 
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
-pacman::p_load_gh("venpopov/bmm")
+pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
@@ -25,8 +24,8 @@ source(here("functions","clean_plot.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 1000
-postwarmup_samples <- 1000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 4
@@ -84,7 +83,7 @@ imm_bsc_fit <- bmm(
                  max_treedepth = max_treedepth),
   
   # save results to file
-  # file = filename_IMMbsc
+  file = filename_IMMbsc
 )
 
 imm_bsc_fit$formula
