@@ -148,7 +148,7 @@ df_samples_probConversion <- fixedFX_draws %>%
          Pmem = (c + a)/((c + a) + (setsize-1)*(a) + exp(0)),
          Pnt = case_when(setsize == 1 ~ 0,
                          TRUE ~ ((setsize-1)*(a))/((c + a) + (setsize-1)*(a) + exp(0))),
-         Pg = exp(0)/((c + a) + (setsize-1)*(a) + (0)),
+         Pg = 1 - Pmem - Pnt,
          Ptotal = Pmem + Pnt + Pg)
 
 # plot derived three-parameter mixture parameters
