@@ -53,7 +53,7 @@ ff <- bmf(kappa ~ 1 + setsize + (1 + setsize |subject),
 pr <- prior_('normal(0.0,0.8)', class = 'b', nlpar = 'kappa', lb = 0) +
   prior_('logistic(0,1)', class = 'b', nlpar = 'thetat',lb = 0)
 
-filename <- here('output','fit_popov_unpublished_monotonic_constraints_2p')
+filename <- here('output','fit_E4_unpublished_monotonic_constraints_2p')
 
 fit_popov_prior <- bmm(model = model_2p,
                        formula = ff,

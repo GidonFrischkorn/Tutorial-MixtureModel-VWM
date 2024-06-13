@@ -89,7 +89,7 @@ ZL_mixPriors <-
   prior(constant(0), class = Intercept, dpar = "mu1") +
   # fix mean of the second von Mises to zero
   prior(constant(0), class = Intercept, dpar = "mu2") +
-  # fix kappa of the second von Mises to (alomst) zero
+  # fix kappa of the second von Mises to (almost) zero
   prior(constant(-100), class = Intercept, dpar = "kappa2") +
   # additional priors for the parameters to be estimated
   prior(normal(0,0.5), class = "b", dpar = "theta1") +
@@ -99,7 +99,7 @@ ZL_mixPriors <-
 # 3) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
-file_name <- "output/fit_E1_ZL2008"
+file_name <- "output/fit_E1_ZL2008_brms"
 
 # using the  model formula. the mixture family, and the mixture priors we can 
 # now fit the mixture model using brms
@@ -113,6 +113,7 @@ fit_ZL_mixModel <- brm(
   # save all potentially relevant information
   sample_prior = TRUE,
   save_pars = save_pars(all = TRUE),
+  init = 0.5,
   
   # add brms settings
   warmup = warmup_samples,

@@ -23,25 +23,24 @@ if (!file.exists(here("output","E5_bridge_3p.rds"))) {
 
 if (!file.exists(here("output","E5_bridge_imm_abc.rds"))) {
   imm_abc_fit <- readRDS(here("output","fit_E5_OL2017_IMMabc.rds")) 
-  bridge_imm_abc <- bridge_sampler(imm_abc_fit, repetition = 20, cores = 6)
-  saveRDS(bridge_3p, file = here("output","E5_bridge_imm_abc.rds"))
+  bridge_imm_abc <- bridge_sampler(imm_abc_fit, repetition = 20, cores = 4)
+  saveRDS(bridge_imm_abc, file = here("output","E5_bridge_imm_abc.rds"))
 } else {
   bridge_imm_abc <- readRDS(here("output","E5_bridge_imm_abc.rds"))
 }
 
 if (!file.exists(here("output","E5_bridge_imm_bsc.rds"))) {
-  
   imm_bsc_fit <- readRDS(here("output","fit_E5_OL2017_IMMbsc.rds"))
-  bridge_imm_bsc <- bridge_sampler(imm_bsc_fit, repetition = 20, cores = 6)
-  saveRDS(bridge_3p, file = here("output","E5_bridge_imm_bsc.rds"))
+  bridge_imm_bsc <- bridge_sampler(imm_bsc_fit, repetition = 20, cores = 4)
+  saveRDS(bridge_imm_bsc, file = here("output","E5_bridge_imm_bsc.rds"))
 } else {
   bridge_imm_bsc <- readRDS(here("output","E5_bridge_imm_bsc.rds"))
 }
 
 if (!file.exists(here("output","E5_bridge_imm_full.rds"))) {
   imm_full_fit <- readRDS(here("output","fit_E5_OL2017_IMMfull.rds"))
-  bridge_imm_full <- bridge_sampler(imm_full_fit, repetition = 20, cores = 6)
-  saveRDS(bridge_3p, file = here("output","E5_bridge_imm_full.rds"))
+  bridge_imm_full <- bridge_sampler(imm_full_fit, repetition = 20, cores = 4)
+  saveRDS(bridge_imm_full, file = here("output","E5_bridge_imm_full.rds"))
 } else {
   bridge_imm_full <- readRDS(here("output","E5_bridge_imm_full.rds"))
 }

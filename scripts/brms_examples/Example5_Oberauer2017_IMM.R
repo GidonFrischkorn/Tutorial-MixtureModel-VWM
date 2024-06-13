@@ -102,15 +102,14 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            # kappa for guessing distribution will be fixed using priors
                            kappa9 ~ 1,             # uniform  
                            # specify mixing distributions for distinct item categories
-                           nlf(theta1 ~ exp(-s*Item1_Pos_rad)*c + a),   # p_mem
-                           nlf(theta2 ~ LureIdx1*(exp(-s*Item2_Pos_rad)*c + a) + (1-LureIdx1)*(-100)),  # p_intrusion
-                           nlf(theta3 ~ LureIdx2*(exp(-s*Item3_Pos_rad)*c + a) + (1-LureIdx2)*(-100)),  # p_intrusion
-                           nlf(theta4 ~ LureIdx3*(exp(-s*Item4_Pos_rad)*c + a) + (1-LureIdx3)*(-100)),  # p_intrusion
-                           nlf(theta5 ~ LureIdx4*(exp(-s*Item5_Pos_rad)*c + a) + (1-LureIdx4)*(-100)),  # p_intrusion
-                           nlf(theta6 ~ LureIdx5*(exp(-s*Item6_Pos_rad)*c + a) + (1-LureIdx5)*(-100)),  # p_intrusion
-                           nlf(theta7 ~ LureIdx6*(exp(-s*Item7_Pos_rad)*c + a) + (1-LureIdx6)*(-100)),  # p_intrusion
-                           nlf(theta8 ~ LureIdx7*(exp(-s*Item8_Pos_rad)*c + a) + (1-LureIdx7)*(-100)),  # p_intrusion
-                           theta9 ~ b,
+                           nlf(theta1 ~ log(exp(c) + exp(a))),   # p_mem
+                           nlf(theta2 ~ LureIdx1*log(exp(c-s*Item2_Pos_rad) + exp(a)) + (1-LureIdx1)*(-100)),  # p_intrusion
+                           nlf(theta3 ~ LureIdx2*log(exp(c-s*Item3_Pos_rad) + exp(a)) + (1-LureIdx2)*(-100)),  # p_intrusion
+                           nlf(theta4 ~ LureIdx3*log(exp(c-s*Item4_Pos_rad) + exp(a)) + (1-LureIdx3)*(-100)),  # p_intrusion
+                           nlf(theta5 ~ LureIdx4*log(exp(c-s*Item5_Pos_rad) + exp(a)) + (1-LureIdx4)*(-100)),  # p_intrusion
+                           nlf(theta6 ~ LureIdx5*log(exp(c-s*Item6_Pos_rad) + exp(a)) + (1-LureIdx5)*(-100)),  # p_intrusion
+                           nlf(theta7 ~ LureIdx6*log(exp(c-s*Item7_Pos_rad) + exp(a)) + (1-LureIdx6)*(-100)),  # p_intrusion
+                           nlf(theta8 ~ LureIdx7*log(exp(c-s*Item8_Pos_rad) + exp(a)) + (1-LureIdx7)*(-100)),  # p_intrusion
                            # target & guessing distribution will be centered using priors
                            mu1 ~ 1, # fixed intercept constrained using priors
                            mu9 ~ 1, # fixed intercept constrained using priors
@@ -125,10 +124,9 @@ IMM_mixModel_formula <- bf(dev_rad ~ 1,
                            nlf(s ~ exp(logS)),      
                            # now predict parameters of interest
                            kappa ~ 0 + SetSize + (0 + SetSize || ID),  # fixed intercept & random slope: precision of memory distributions
-                           logS ~ 1,   # fixed intercept & random slope: spatial gradient (on logarithmic scale)
-                           c ~ 1,      # fixed intercept & random slope: context activation
+                           logS ~ 0 + SetSize + (0 + SetSize || ID),   # fixed intercept & random slope: spatial gradient (on logarithmic scale)
+                           c ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: context activation
                            a ~ 0 + SetSize + (0 + SetSize || ID),      # fixed intercept & random slope: general activation
-                           b ~ 0 + SetSize + (0 + SetSize || ID),
                            # for brms to process this formula correctly, set non-linear to TRUE
                            nl = TRUE)
 
@@ -144,40 +142,37 @@ IMM_priors <-
   prior(constant(-100), class = Intercept, dpar = "kappa9") +
   # next, we set reasonable priors for the to be estimated distributions
   prior(normal(2,2), class = b, nlpar = "c") +
-  prior(constant(1), class = b, nlpar = "c") +
   prior(normal(1.5, 2), class = b, nlpar = "kappa") +
   prior(normal(0, 1), class = b, nlpar = "logS", ) +
-  prior(normal(0,2), class = b, dpar = "theta9") +
   prior(normal(0.5, 1), class = b, nlpar = "a") +
   prior(constant(0), class = b, nlpar = "logS", coef = "SetSize1") +
   prior(constant(0), class = b, nlpar = "a", coef = "SetSize1")
 
-if (!file.exists(here("output","fit_E5_OL2017_IMMfull.RData"))) {
-  # fit IMM using the brm function
-  fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
-                        data = df_OberauerLin2017_E1,
-                        family = IMM_mixModel, 
-                        prior = IMM_priors,
-                        
-                        # save settings
-                        sample_prior = TRUE,
-                        save_pars = save_pars(all = TRUE),
-                        
-                        # add brms settings
-                        warmup = warmup_samples,
-                        iter = warmup_samples + postwarmup_samples, 
-                        chains = nChains,
-                        
-                        # control commands for the sampler
-                        control = list(adapt_delta = adapt_delta, 
-                                       max_treedepth = max_treedepth))
-  
-  save(fit_IMM_mixMod,
-       file = here("output","fit_E5_OL2017_IMMfull.RData"),
-       compress = "xz")
-} else {
-  load(here("output","fit_E5_OL2017_IMMfull.RData"))
-}
+
+# if the model has been already estimated, load the results, otherwise estimate it
+file_name <- here("output","fit_E5_OL2017_IMMfull_brms")
+
+# fit IMM using the brm function
+fit_IMM_mixMod <- brm(formula = IMM_mixModel_formula, 
+                      data = df_OberauerLin2017_E1,
+                      family = IMM_mixModel, 
+                      prior = IMM_priors,
+                      
+                      # save settings
+                      sample_prior = TRUE,
+                      save_pars = save_pars(all = TRUE),
+                      
+                      # add brms settings
+                      warmup = warmup_samples,
+                      iter = warmup_samples + postwarmup_samples, 
+                      chains = nChains,
+                      
+                      # control commands for the sampler
+                      control = list(adapt_delta = adapt_delta, 
+                                     max_treedepth = max_treedepth),
+                      
+                      file = file_name)
+
 
 ###############################################################################!
 # 3) Model evaluation ----------------------------------------------------------

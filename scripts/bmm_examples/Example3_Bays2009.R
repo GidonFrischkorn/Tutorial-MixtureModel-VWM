@@ -80,7 +80,7 @@ formula_bays_2009 <- bmf(kappa ~ 0 + setsize + (0 + setsize || subID),
                          thetant ~ 0 + setsize + (0 + setsize || subID))
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename <- here('output','fit_bays2009_3p_model')
+filename <- here('output','fit_E3_bays2009_bmm')
 
 fit_bays_2009 <- bmm(model = model_bays_2009,
                      formula = formula_bays_2009, 
@@ -137,8 +137,6 @@ sd #in radians
 round(pmem,3)
 round(pnt,3)
 round(pg, 3)
-
-
 
 ## 2.3) plot parameter estimates -----------------------------------------------
 # extract brms draws from the posterior distribution

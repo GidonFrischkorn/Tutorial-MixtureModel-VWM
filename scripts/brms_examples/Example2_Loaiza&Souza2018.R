@@ -104,44 +104,39 @@ LS_mixPriors <-
   prior(constant(0), class = Intercept, dpar = "mu1") +
   # fix mean of the second von Mises to zero
   prior(constant(0), class = Intercept, dpar = "mu2") +
-  # fix kappa of the second von Mises to (alomst) zero
+  # fix kappa of the second von Mises to (almost) zero
   prior(constant(-100), class = Intercept, dpar = "kappa2") +
   prior(normal(0,0.5), class = "b", dpar = "theta1") +
   prior(normal(0,0.5), class = "b", dpar = "kappa1")
 
 # fit mixture model if there is not already a results file stored
-if (!file.exists(here("output","fit_E2_LS2018.RData"))) {
-  # fit the mixture model using brms
-  fit_LS2018_mixModel <- brm(
-    # include model information
-    formula = LS_mixFormula, # specify formula for mixture model
-    data    = wmData, # specify data used to estimate the mixture model
-    family  = LS_mixFamily, # call the defined mixture family
-    prior   = LS_mixPriors, # use the used defined priors,
+filename <- 'output/fit_E2_LS2018_brms'
+
+# fit the mixture model using brms
+fit_LS2018_mixModel <- brm(
+  # include model information
+  formula = LS_mixFormula, # specify formula for mixture model
+  data    = wmData, # specify data used to estimate the mixture model
+  family  = LS_mixFamily, # call the defined mixture family
+  prior   = LS_mixPriors, # use the used defined priors,
   
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
   
-  # save results into file
-  save(fit_LS2018_mixModel, 
-       file = here("output","fit_E2_LS2018.RData"),
-       compress = "xz")
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
   
-} else {
-  # load results file
-  load(file = here("output","fit_E2_LS2018.RData"))
-}
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save results to file
+  file = filename
+)
+
 
 ###############################################################################!
 # 3) Model evaluation ----------------------------------------------------------
@@ -153,10 +148,6 @@ pp_check(fit_LS2018_mixModel)
 
 # print results summary
 summary(fit_LS2018_mixModel)
-
-# test hypothesis
-hypothesis(fit_LS2018_mixModel,
-           c(hyp1 = "theta1_ageGroupYoung:RIshort:cueCondNo > theta1_ageGroupOld:RIshort:cueCondNo"))
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
@@ -193,7 +184,7 @@ results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                            cueCond == "RetroCue" & RI == "long" ~ 2),
          ageGroup = case_when(BP_Group == "Old" ~ "Old",
                               TRUE ~ "Young"))
-  
+
 # extract posterior draws for fixed effects on kappa & theta
 fixedFX_draws <- fit_LS2018_mixModel %>% 
   tidy_draws() %>%
@@ -243,8 +234,8 @@ kappa_plot
 
 # plot pMem results
 pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "theta1"),
-                     aes(x = RI, y = postSample_abs, 
-                         color = as.factor(nCues), shape = as.factor(nCues))) +
+                    aes(x = RI, y = postSample_abs, 
+                        color = as.factor(nCues), shape = as.factor(nCues))) +
   facet_grid(. ~ ageGroup) +
   theme(legend.position = c(0.25, 0.8)) +
   coord_cartesian(ylim = c(0.35,1)) +

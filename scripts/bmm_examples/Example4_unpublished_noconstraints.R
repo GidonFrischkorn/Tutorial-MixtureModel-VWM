@@ -50,7 +50,7 @@ contrasts(data_popov$setsize)
 ff <- bmf(kappa ~ 1 + setsize + (1 + setsize |subject),
           thetat ~ 1 + setsize + (1 + setsize |subject))
 
-filename <- here('output','fit_popov_unpublished_noconstraints_2p')
+filename <- here('output','fit_E4_unpublished_noconstraints_2p')
 
 fit_popov <- bmm(model = model_2p,
                  formula = ff,

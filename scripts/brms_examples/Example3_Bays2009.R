@@ -117,7 +117,7 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             nl = TRUE)
 
 # check default priors
-get_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
+default_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
 
 # constrain priors to identify the model
 Bays_mixModel_priors <- 
@@ -133,7 +133,7 @@ Bays_mixModel_priors <-
   prior(constant(-100), class = b, coef = "setsize1", nlpar = "thetant")
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename <- 'output/fit_bays2009_3p_model'
+filename <- 'output/fit_E3_bays2009_brms'
 
 # fit the mixture model using brms
 fit_Bays_mixMod <- brm(
@@ -165,12 +165,12 @@ fit_Bays_mixMod <- brm(
 
 ## 2.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_Bays_mixMod)
+pp_check(fit_Bays_mixMod, group = "setsize", type = "dens_overlay_grouped")
 
 # print results summary. There is 1 divergent transition, but we will ignore it
 # for the purposes of this illustration. For real analyses, follow the suggestions
 # to remove this issue
-summary(fit_Bays_mixMod)
+summary(fit_Bays_mixMod, backend = "brms")
 
 ## 2.2) Extract parameter estimates --------------------------------------------
 # extract the fixed effects from the model and determine the rows that contain
