@@ -1,9 +1,6 @@
 # Reproducing results from Loaiza & Souza (2018)
 # "Is Refreshing in Working Memory Impaired in Older Age? Evidence from the Retro-Cue Paradigm"
 
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
 
 # load required packages
 pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)

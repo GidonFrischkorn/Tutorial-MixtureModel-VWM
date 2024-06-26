@@ -7,15 +7,9 @@
 #'  3) how the model can be evaluated and results extracted and plotted.
 
 # 0) R Setup: Packages & Data --------------------------------------------------
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
 
 # load required packages
-library(brms)       # for estimating the mixture model
-library(tidyverse)
-library(here)
-library(bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 
 # load missing output files
 source(here("scripts","LoadResultsFiles.R"))

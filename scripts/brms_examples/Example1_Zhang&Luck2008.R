@@ -10,10 +10,6 @@
 # 0) R Setup: Packages & Data --------------------------------------------------
 ###############################################################################!
 
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
-
 # load required packages
 pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 

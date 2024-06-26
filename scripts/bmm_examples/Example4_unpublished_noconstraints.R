@@ -5,8 +5,7 @@
 # 0) R Setup                                                             ####
 #############################################################################!
 
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves)
-pacman::p_load_gh("venpopov/bmm")
+pacman::p_load(here, brms, bmm, tidyverse, tidybayes, patchwork, gghalves)
 
 source(here('functions/clean_plot.R'))
 

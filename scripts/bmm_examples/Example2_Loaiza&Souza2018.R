@@ -1,13 +1,9 @@
 # Reproducing results from Loaiza & Souza (2018)
 # "Is Refreshing in Working Memory Impaired in Older Age? Evidence from the Retro-Cue Paradigm"
 
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
-
 # load required packages
-pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, bayestestR, gghalves)
-pacman::p_load_gh("venpopov/bmm")
+pacman::p_load(here, brms, bmm, tidyverse, tidybayes, patchwork, bayestestR, gghalves)
+
 
 # load function to clean up plots
 source(here("functions","clean_plot.R"))
