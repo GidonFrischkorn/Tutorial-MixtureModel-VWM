@@ -7,15 +7,9 @@
 #'  3) how the model can be evaluated and results extracted and plotted.
 
 # 0) R Setup: Packages & Data --------------------------------------------------
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
 
 # load required packages
-library(brms)       # for estimating the mixture model
-library(tidyverse)
-library(here)
-library(bmm)
+pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 
 # load missing output files
 source(here("scripts","LoadResultsFiles.R"))
@@ -51,13 +45,13 @@ data_Bays2009 <- read.table(here("data/Bays2009.txt"), header = T) %>%
     LureIdx4 = case_when(setsize >= 5 ~ 1, TRUE ~ 0),
     LureIdx5 = case_when(setsize >= 6 ~ 1, TRUE ~ 0),
     # recode lures to be relative to target
-    Pos_Lure1 = wrap(RespErr-Pos_Lure1),
-    Pos_Lure2 = wrap(RespErr-Pos_Lure2),
-    Pos_Lure3 = wrap(RespErr-Pos_Lure3),
-    Pos_Lure4 = wrap(RespErr-Pos_Lure4),
-    Pos_Lure5 = wrap(RespErr-Pos_Lure5),
+    Pos_Lure1 = wrap(RespErr - Pos_Lure1),
+    Pos_Lure2 = wrap(RespErr - Pos_Lure2),
+    Pos_Lure3 = wrap(RespErr - Pos_Lure3),
+    Pos_Lure4 = wrap(RespErr - Pos_Lure4),
+    Pos_Lure5 = wrap(RespErr - Pos_Lure5),
     # variable to include in formula as a correction to theta due to setsize
-    inv_ss = 1/(setsize-1),
+    inv_ss = 1/(setsize - 1),
     inv_ss = ifelse(is.infinite(inv_ss), 1, inv_ss),
     setsize = as.factor(setsize)) %>% 
     select(subID,trial,setsize,RespErr,
@@ -70,7 +64,6 @@ head(data_Bays2009[sample(1:nrow(data_Bays2009),6),])
 ###############################################################################!
 # 2) BRMS fit ------------------------------------------------------------------
 ###############################################################################!
-
 
 # create mixture of von Mises distributions
 Bays_mixModel <- mixture(von_mises(link = "identity"),
@@ -117,9 +110,8 @@ Bays_mixModel_formula <- bf(RespErr ~ 1,
                             # for brms to process this formula correclty, set non-linear to TRUE
                             nl = TRUE)
 
-
 # check default priors
-get_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
+default_prior(Bays_mixModel_formula, data_Bays2009, Bays_mixModel)
 
 # constrain priors to identify the model
 Bays_mixModel_priors <- 
@@ -132,41 +124,34 @@ Bays_mixModel_priors <-
   prior(normal(5.0, 0.8), class = b, nlpar = "kappa") +
   prior(logistic(0, 1), class = b, nlpar = "thetat") +
   prior(logistic(0, 1), class = b, nlpar = "thetant") +
-  prior(constant(-100), class = b, coef="setsize1", nlpar="thetant")
+  prior(constant(-100), class = b, coef = "setsize1", nlpar = "thetant")
 
 # if the model has been already estimated, load the results, otherwise estimate it
-filename <- 'output/fit_bays2009_3p_model.RData'
-if (!file.exists(here(filename))) {
-  # fit the mixture model using brms
-  fit_Bays_mixMod <- brm(
-    # include model information
-    formula = Bays_mixModel_formula, # specify formula for mixture model
-    data    = data_Bays2009, # specify data used to estimate the mixture model
-    family  = Bays_mixModel, # call the defined mixture family
-    prior   = Bays_mixModel_priors, # use the used defined priors,
-    
-    # save settings
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+filename <- 'output/fit_E3_bays2009_brms'
+
+# fit the mixture model using brms
+fit_Bays_mixMod <- brm(
+  # include model information
+  formula = Bays_mixModel_formula, # specify formula for mixture model
+  data    = data_Bays2009, # specify data used to estimate the mixture model
+  family  = Bays_mixModel, # call the defined mixture family
+  prior   = Bays_mixModel_priors, # use the used defined priors,
   
-  # save results into file
-  save(fit_Bays_mixMod, 
-       file = here(filename),
-       compress = "xz")
-} else {
-  # load results file
-  load(file = here(filename))
-}
+  # save settings
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  file = filename
+)
 
 #############################################################################!
 # 2) Model evaluation                                                    ####
@@ -174,12 +159,12 @@ if (!file.exists(here(filename))) {
 
 ## 2.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
-pp_check(fit_Bays_mixMod)
+pp_check(fit_Bays_mixMod, group = "setsize", type = "dens_overlay_grouped")
 
 # print results summary. There is 1 divergent transition, but we will ignore it
 # for the purposes of this illustration. For real analyses, follow the suggestions
 # to remove this issue
-summary(fit_Bays_mixMod)
+summary(fit_Bays_mixMod, backend = "brms")
 
 ## 2.2) Extract parameter estimates --------------------------------------------
 # extract the fixed effects from the model and determine the rows that contain
@@ -192,9 +177,9 @@ kappa <- fixedEff[grepl("kappa_",rownames(fixedEff)),]
 # transform parameters because brms uses special link functions
 kappa <- exp(kappa)
 sd <- k2sd(kappa[,1]) 
-pmem <- exp(thetat)/(exp(thetat)+exp(thetant)+exp(0))
-pnt <- exp(thetant)/(exp(thetat)+exp(thetant)+exp(0))
-pg <- exp(0)/(exp(thetat)+exp(thetant)+exp(0))
+pmem <- exp(thetat)/(exp(thetat) + exp(thetant) + exp(0))
+pnt <- exp(thetant)/(exp(thetat) + exp(thetant) + exp(0))
+pg <- exp(0)/(exp(thetat) + exp(thetant) + exp(0))
 
 # print parameter estimates
 kappa
@@ -202,8 +187,6 @@ sd #in radians
 round(pmem,3)
 round(pnt,3)
 round(pg, 3)
-
-
 
 ## 2.3) plot parameter estimates -----------------------------------------------
 # define defaults for clean ggplots
@@ -230,9 +213,9 @@ fixedFX_draws <- fit_Bays_mixMod %>%
   filter(par %in% c('kappa','thetat','thetant')) %>%
   spread(par, postSample) %>% 
   mutate(sd = k2sd(exp(kappa))/pi * 180,
-         pmem = exp(thetat)/(exp(thetat)+exp(thetant)+exp(0)),
-         pnt = exp(thetant)/(exp(thetat)+exp(thetant)+exp(0)),
-         pg = 1-pmem-pnt,
+         pmem = exp(thetat)/(exp(thetat) + exp(thetant) + exp(0)),
+         pnt = exp(thetant)/(exp(thetat) + exp(thetant) + exp(0)),
+         pg = 1 - pmem - pnt,
          setsize = str_remove_all(cond,"setsize"))
 
 # results from the published paper
@@ -242,7 +225,7 @@ results_Bays2009 <- data.frame(
   pg = c(0.01,0.05,0.16,0.14),
   sd = c(13.5,18,22.5,24.5)
 )
-results_Bays2009$pmem <- 1-results_Bays2009$pnt-results_Bays2009$pg
+results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
 
 # plot sd results
 (sd_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = sd)) +

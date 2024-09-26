@@ -10,10 +10,6 @@
 # 0) R Setup: Packages & Data --------------------------------------------------
 ###############################################################################!
 
-# start fresh
-rm(list = ls()) # clean up work space
-graphics.off()  # switch off graphics device
-
 # load required packages
 pacman::p_load(here, brms, tidyverse, tidybayes, patchwork, gghalves, bmm)
 
@@ -27,8 +23,8 @@ source(here("scripts","LoadResultsFiles.R"))
 options(mc.cores =  parallel::detectCores())
 
 # specify the number of samples to run for warm up & after warm up
-warmup_samples <- 3000
-postwarmup_samples <- 3000
+warmup_samples <- 2000
+postwarmup_samples <- 2000
 
 # specify the number of chains
 nChains <- 6
@@ -89,7 +85,7 @@ ZL_mixPriors <-
   prior(constant(0), class = Intercept, dpar = "mu1") +
   # fix mean of the second von Mises to zero
   prior(constant(0), class = Intercept, dpar = "mu2") +
-  # fix kappa of the second von Mises to (alomst) zero
+  # fix kappa of the second von Mises to (almost) zero
   prior(constant(-100), class = Intercept, dpar = "kappa2") +
   # additional priors for the parameters to be estimated
   prior(normal(0,0.5), class = "b", dpar = "theta1") +
@@ -99,40 +95,35 @@ ZL_mixPriors <-
 # 3) Model estimation ----------------------------------------------------------
 ###############################################################################!
 
-# fit mixture model if there is not already a results file stored
-if (!file.exists(here("output/fit_E1_ZL2008.RData"))) {
-  # using the  model formula. the mixture family, and the mixture priors we can 
-  # now fit the mixture model using brms
-  fit_ZL_mixModel <- brm(
-    # include model information
-    formula = ZL_mixFormula, # specify formula for mixture model
-    data    = data_ZL2008,   # specify data used to estimate the mixture model
-    family  = ZL_mixFamily,  # call the defined mixture family
-    prior   = ZL_mixPriors,  # use the used defined priors,
-    
-    # save all potentially relevant information
-    sample_prior = TRUE,
-    save_pars = save_pars(all = TRUE),
-    
-    # add brms settings
-    warmup = warmup_samples,
-    iter = warmup_samples + postwarmup_samples, 
-    chains = nChains,
-    
-    # control commands for the sampler
-    control = list(adapt_delta = adapt_delta, 
-                   max_treedepth = max_treedepth)
-  )
+file_name <- "output/fit_E1_ZL2008_brms"
+
+# using the  model formula. the mixture family, and the mixture priors we can 
+# now fit the mixture model using brms
+fit_ZL_mixModel <- brm(
+  # include model information
+  formula = ZL_mixFormula, # specify formula for mixture model
+  data    = data_ZL2008,   # specify data used to estimate the mixture model
+  family  = ZL_mixFamily,  # call the defined mixture family
+  prior   = ZL_mixPriors,  # use the used defined priors,
   
-  # save results into file
-  save(fit_ZL_mixModel, 
-       file = here("output/fit_E1_ZL2008.RData"),
-       compress = "xz")
+  # save all potentially relevant information
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  init = 0.5,
   
-} else {
-  # load results file
-  load(file = here("output/fit_E1_ZL2008.RData"))
-}
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  backend = "rstan",
+  
+  file = file_name
+)
+
 
 ###############################################################################!
 # 4) Model evaluation ----------------------------------------------------------
@@ -144,6 +135,7 @@ pp_Plot <- pp_check(fit_ZL_mixModel)
 pp_Plot <- pp_Plot +
   theme(axis.text = element_text(size = 16),
         legend.text = element_text(size = 16))
+pp_Plot
 
 ggsave(filename = here("figures/postPredPlot_ZL2008.jpeg"),
        plot = pp_Plot, width = 6, height = 4)
@@ -157,8 +149,8 @@ summary(fit_ZL_mixModel)
 fixedEff <- fixef(fit_ZL_mixModel)
 
 # determine the rows that contain the relevant parameter estimates
-theta_cols <- grepl("theta",rownames(fixedEff))
-kappa_cols <- grepl("kappa1",rownames(fixedEff))
+theta_cols <- startsWith(rownames(fixedEff),"theta")
+kappa_cols <- startsWith(rownames(fixedEff),"kappa1")
 
 # extract kappa estimates
 kappa_fixedFX <- fixedEff[kappa_cols,]
