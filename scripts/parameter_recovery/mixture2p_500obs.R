@@ -1,3 +1,7 @@
+# Performs parameter recovery simulations for 2-parameter mixture model with fixed population
+# parameters and 500 observations per subject
+# The figures in https://github.com/GidonFrischkorn/Tutorial-MixtureModel-VWM/issues/16#issuecomment-2053756837 were generated using this script
+
 library(here)
 library(glue)
 source(here("scripts/parameter_recovery/mixture2p_functions.R"))
