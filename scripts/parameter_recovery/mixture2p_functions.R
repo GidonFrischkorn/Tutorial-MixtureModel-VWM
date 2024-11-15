@@ -1,6 +1,25 @@
 library(mixtur)
 library(bmm)
 
+#' Fit the 2-parameter mixture model via maximum likelihood and bayesian mixed-effects model to synthetic data
+#' 
+#' For given population parameters, this function generates synthetic data with random effects for each subject
+#' and fits the 2-parameter mixture model to the data using maximum likelihood and bayesian mixed-effects model.
+#' 
+#' @param N_subj Number of subjects
+#' @param N_obs Number of observations per subject
+#' @param thetat_mu Mean of the population parameter thetat
+#' @param thetat_sd Standard deviation of the population parameter thetat
+#' @param log_kappa Mean of the population parameter log(kappa)
+#' @param log_kappa_sd Standard deviation of the population parameter log(kappa)
+#' @param cores Number of cores to use for the bmm function
+#' 
+#' @return A list containing the following elements:
+#'  - pars: Data frame containing the population parameters
+#' - par_ml: Data frame containing the estimated parameters using maximum likelihood
+#' - par_bmm: Data frame containing the estimated parameters using bayesian mixed-effects model
+#' - fit_bmm: Fitted bmm object
+#' - data: Data frame containing the synthetic data
 fit_ml_and_bmm <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_kappa, log_kappa_sd, cores = 4) {
   thetats = rnorm(N_subj, thetat_mu, thetat_sd)
   log_kappas = rnorm(N_subj, log_kappa, log_kappa_sd)
