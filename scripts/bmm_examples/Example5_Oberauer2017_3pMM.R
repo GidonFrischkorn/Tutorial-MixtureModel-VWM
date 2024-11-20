@@ -46,14 +46,14 @@ data <- oberauer_lin_2017
 #############################################################################!
 
 ## Estimate pars for 3par Mixture Model ------------------------------------
-model_3p <- mixture3p(resp_error = "dev_rad",
-                      nt_features = paste0("col_nt",1:7),
-                      set_size = "set_size")
+model_3pMM <- mixture3p(resp_error = "dev_rad",
+                        nt_features = paste0("col_nt",1:7),
+                        set_size = "set_size")
 
 # formula
-ff <- bmf(kappa ~ 0 + set_size + (0 + set_size || ID),
-          thetat ~ 0 + set_size + (0 + set_size || ID),
-          thetant ~ 0 + set_size + (0 + set_size || ID))
+formula_3pMM <- bmf(kappa ~ 0 + set_size + (0 + set_size || ID),
+                    thetat ~ 0 + set_size + (0 + set_size || ID),
+                    thetant ~ 0 + set_size + (0 + set_size || ID))
 
 default_prior(ff, model = model_3p, data = data)
 
@@ -62,7 +62,7 @@ filename = here("output","fit_E5_OL2017_3pMM")
 
 fit_3pMM <- bmm(
   model = model_3p,
-  formula = ff, 
+  formula = formula_3pMM, 
   data = data, 
   
   # save settings

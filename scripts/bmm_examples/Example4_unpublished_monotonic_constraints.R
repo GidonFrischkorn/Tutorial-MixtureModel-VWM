@@ -14,10 +14,10 @@ source(here("scripts","LoadResultsFiles.R"))
 
 # specify the number of samples to run for warm up & after warm up
 warmup_samples <- 1000
-postwarmup_samples <- 1000
+postwarmup_samples <- 5000
 
 # specify the number of chains
-nChains <- 4
+nChains <- 6
 
 #' if the number of user defined chains is larger than the number of cores 
 #' on the system than estimate as many chains as there are cores on the system
@@ -76,16 +76,18 @@ fit_popov_prior <- bmm(model = model_2p,
                        # save results to file
                        file = filename)
 
-fit_popov <- readRDS(here("output","fit_popov_unpublished_noconstraints_2p.rds"))
+fit_popov <- readRDS(here("output","fit_E4_unpublished_noconstraints_2p.rds"))
 
-bf <- bayes_factor(fit_popov,fit_popov_prior, repetitions = 10, cores = 4)
+bf <- bayes_factor(fit_popov,fit_popov_prior, repetitions = 20, cores = 4)
 hist(log(bf$bf))
+bf
 
 #############################################################################!
 # 2) Model evaluation                                                    ####
 #############################################################################!
 
 pp_check(fit_popov_prior, group = "setsize", type = "dens_overlay_grouped")
+pp_check(fit_popov, group = "setsize", type = "dens_overlay_grouped")
 
 summary(fit_popov_prior)
 

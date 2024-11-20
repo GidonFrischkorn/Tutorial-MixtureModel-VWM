@@ -47,11 +47,23 @@ if (!file.exists(here("output","E5_bridge_imm_full.rds"))) {
 
 
 # Calculate Bayes Factors
-bayes_factor(bridge_imm_full, bridge_3p)
-bayes_factor(bridge_imm_full, bridge_imm_abc)
-bayes_factor(bridge_imm_full, bridge_imm_bsc)
+bf_fullVS3p <- bayes_factor(bridge_imm_full, bridge_3p)
+bf_fullVS3p
 
-bayes_factor(bridge_3p, bridge_imm_abc)
-bayes_factor(bridge_3p, bridge_imm_bsc)
+bf_fullVSabc <- bayes_factor(bridge_imm_full, bridge_imm_abc)
+bf_fullVSbsc <- bayes_factor(bridge_imm_full, bridge_imm_bsc)
+min(bf_fullVSbsc$bf)
+max(bf_fullVSbsc$bf)
+bf_fullVSbsc$bf_median_based
 
-bayes_factor(bridge_imm_abc, bridge_imm_bsc)
+bf_abcVS3p <- bayes_factor(bridge_imm_abc, bridge_3p)
+bf_abcVSbsc <- bayes_factor(bridge_imm_abc, bridge_imm_bsc)
+min(bf_abcVSbsc$bf)
+max(bf_abcVSbsc$bf)
+bf_abcVSbsc$bf_median_based
+
+
+bf_bscVS3p <- bayes_factor(bridge_imm_bsc, bridge_3p)
+min(bf_bscVS3p$bf)
+max(bf_bscVS3p$bf)
+bf_bscVS3p$bf_median_based

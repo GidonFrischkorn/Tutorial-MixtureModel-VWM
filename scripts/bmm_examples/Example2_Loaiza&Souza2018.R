@@ -2,7 +2,7 @@
 # "Is Refreshing in Working Memory Impaired in Older Age? Evidence from the Retro-Cue Paradigm"
 
 # load required packages
-pacman::p_load(here, brms, bmm, tidyverse, tidybayes, patchwork, bayestestR, gghalves)
+pacman::p_load(here, brms, bmm, tidyverse, tidybayes, patchwork, bayestestR, gghalves, rstan)
 
 
 # load function to clean up plots
@@ -101,8 +101,21 @@ LS_formula <- bmf(
     (0 + RI + cueCond + RI:cueCond || gr(id, by = ageGroup))
 )
 
+# do not estimate interaction of RI & cueCond in both age groups
+LS_formula_reduced <- bmf(
+  # estimating fixed intercept & random intercept for kappa of the first von Mises
+  kappa ~ 0 + ageGroup + ageGroup:RI + ageGroup:cueCond + 
+    (0 + RI + cueCond + RI:cueCond || gr(id, by = ageGroup)), 
+  
+  # estimating fixed intercept & random intercept for the mixing proportion 
+  # of the target vonMises (i.e., p_mem)
+  thetat ~ 0 + ageGroup + ageGroup:RI + ageGroup:cueCond +
+    (0 + RI + cueCond + RI:cueCond || gr(id, by = ageGroup))
+)
+
 # check the default priors
 default_prior(LS_formula, data = wmData, model = LS_model)
+default_prior(LS_formula_reduced, data = wmData, model = LS_model)
 
 my_priors <- prior(normal(0,1), class = b, nlpar = thetat)
 
@@ -132,10 +145,35 @@ LS2018_fit <- bmm(
   file = here("output","fit_E2_LS2018_bmm")
 )
 
+# fit mixture model if there is not already a results file stored
+LS2018_fit_reduced <- bmm(
+  # include model information
+  formula = LS_formula_reduced, # specify formula for mixture model
+  data    = wmData, # specify data used to estimate the mixture model
+  model = LS_model,
+  
+  # save settings
+  prior = my_priors,
+  sample_prior = TRUE,
+  save_pars = save_pars(all = TRUE),
+  
+  # add brms settings
+  warmup = warmup_samples,
+  iter = warmup_samples + postwarmup_samples, 
+  chains = nChains,
+  cores = parallel::detectCores(),
+  
+  # control commands for the sampler
+  control = list(adapt_delta = adapt_delta, 
+                 max_treedepth = max_treedepth),
+  
+  # save the results
+  file = here("output","fit_E2_LS2018_reduced_bmm")
+)
+
 ###############################################################################!
 # 3) Model evaluation ----------------------------------------------------------
 ###############################################################################!
-
 
 ## 3.1) fit & summary ----------------------------------------------------------
 # plot the posterior predictive check to evaluate overall model fit
@@ -164,6 +202,25 @@ age_hypothesis <- c(
 )
 hyp_age <- hypothesis(LS2018_fit, age_hypothesis)
 1/hyp_age$hypothesis$Evid.Ratio
+
+# get marginal likelihood for the two models
+if (!file.exists(here("output","E2_bridge_full.rds"))) {
+  bridge_full <- bridge_sampler(LS2018_fit, repetition = 20, cores = 6)
+  saveRDS(bridge_full, file = here("output","E2_bridge_full.rds"))
+} else {
+  bridge_full <- readRDS(here("output","E2_bridge_full.rds"))
+}
+
+if (!file.exists(here("output","E2_bridge_reduced.rds"))) {
+  bridge_reduced <- bridge_sampler(LS2018_fit_reduced, repetition = 20, cores = 4)
+  saveRDS(bridge_reduced, file = here("output","E2_bridge_reduced.rds"))
+} else {
+  bridge_reduced <- readRDS(here("output","E2_bridge_reduced.rds"))
+}
+
+# Calculate Bayes Factors
+bayes_factor(bridge_full, bridge_reduced)
+bayes_factor(bridge_reduced, bridge_full)
 
 ## 3.2) extract parameter estimates --------------------------------------------
 
@@ -205,8 +262,6 @@ results_LS_2018 <- read.table(here("data","LS2018_2P_hierarchicalfit.txt"),
                            cueCond == "RetroCue" & RI == "long" ~ 2),
          ageGroup = case_when(BP_Group == "Old" ~ "old",
                               TRUE ~ "young"))
-
-
 
 # extract posterior draws for fixed effects on kappa & theta
 fixedFX_draws <- LS2018_fit %>% 
@@ -351,6 +406,7 @@ ggsave(
   filename = here("figures/plot_kappaEst_LS2018.jpeg"),
   plot = kappa_plot, width = 6, height = 6
 )
+
 ggsave(
   filename = here("figures/plot_pmemEst_LS2018.jpeg"),
   plot = pMem_plot, width = 6, height = 6
