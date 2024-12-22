@@ -14,10 +14,10 @@ source(here("scripts","LoadResultsFiles.R"))
 
 # specify the number of samples to run for warm up & after warm up
 warmup_samples <- 1000
-postwarmup_samples <- 1000
+postwarmup_samples <- 5000
 
 # specify the number of chains
-nChains <- 4
+nChains <- 6
 
 #' if the number of user defined chains is larger than the number of cores 
 #' on the system than estimate as many chains as there are cores on the system
@@ -49,11 +49,15 @@ contrasts(data_popov$setsize)
 ff <- bmf(kappa ~ 1 + setsize + (1 + setsize |subject),
           thetat ~ 1 + setsize + (1 + setsize |subject))
 
+pr <- prior_('normal(0.0,0.8)', class = 'b', nlpar = 'kappa') +
+  prior_('logistic(0,1)', class = 'b', nlpar = 'thetat')
+
 filename <- here('output','fit_E4_unpublished_noconstraints_2p')
 
 fit_popov <- bmm(model = model_2p,
                  formula = ff,
                  data = data_popov,
+                 prior = pr,
                  
                  # save settings
                  sample_prior = TRUE,
