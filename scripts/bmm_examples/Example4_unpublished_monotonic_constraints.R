@@ -78,7 +78,21 @@ fit_popov_prior <- bmm(model = model_2p,
 
 fit_popov <- readRDS(here("output","fit_E4_unpublished_noconstraints_2p.rds"))
 
-bf <- bayes_factor(fit_popov,fit_popov_prior, repetitions = 20, cores = 4)
+if (!file.exists(here("output","E4_bridge_noconstraints.rds"))) {
+  bridge_noconstraints <- bridge_sampler(fit_popov, repetition = 20, cores = 6)
+  saveRDS(bridge_noconstraints, file = here("output","E4_bridge_noconstraints.rds"))
+} else {
+  bridge_noconstraints <- readRDS(here("output","E4_bridge_noconstraints.rds"))
+}
+
+if (!file.exists(here("output","E4_bridge_monotonic.rds"))) {
+  bridge_monotonic <- bridge_sampler(fit_popov_prior, repetition = 20, cores = 6)
+  saveRDS(bridge_monotonic, file = here("output","E4_bridge_monotonic.rds"))
+} else {
+  bridge_monotonic <- readRDS(here("output","E4_bridge_monotonic.rds"))
+}
+
+bf <- bayes_factor(bridge_monotonic,bridge_noconstraints)
 hist(log(bf$bf))
 bf
 

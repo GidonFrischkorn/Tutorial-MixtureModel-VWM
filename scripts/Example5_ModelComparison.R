@@ -15,7 +15,7 @@ pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork, gghalves)
 
 if (!file.exists(here("output","E5_bridge_3p.rds"))) {
   fit_3pMM <- readRDS(here("output","fit_E5_OL2017_3pMM.rds"))
-  bridge_3p <- bridge_sampler(fit_3pMM, repetition = 20, cores = 6)
+  bridge_3p <- bridge_sampler(fit_3pMM, repetition = 20, cores = 4)
   saveRDS(bridge_3p, file = here("output","E5_bridge_3p.rds"))
 } else {
   bridge_3p <- readRDS(here("output","E5_bridge_3p.rds"))
