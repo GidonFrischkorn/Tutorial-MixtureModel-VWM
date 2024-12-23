@@ -1,5 +1,6 @@
 library(mixtur)
 library(bmm)
+library(brms)
 
 #' Fit the 2-parameter mixture model via maximum likelihood and bayesian mixed-effects model to synthetic data
 #' 
@@ -27,7 +28,7 @@ fit_ml_and_bmm <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_kappa, log_k
   
   data <- list()
   for (i in 1:N_subj) {
-    data[[i]] <- rmixture2p(N_obs, mu = 0, pMem = pars$pmem[i], kappa = pars$kappa[i])
+    data[[i]] <- bmm::rmixture2p(N_obs, mu = 0, p_mem = pars$pmem[i], kappa = pars$kappa[i])
   }
   
   data <- data.frame(id = rep(1:N_subj, each = N_obs), 
@@ -35,28 +36,46 @@ fit_ml_and_bmm <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_kappa, log_k
                      target = rep(0, N_subj * N_obs))
   
   
-  par_ml <- fit_mixtur(data, model = "2_component", unit = "radians", response_var = "y")
+  par_ml <- mixtur::fit_mixtur(data, model = "2_component", unit = "radians", response_var = "y")
   names(par_ml) <- c('id','kappa','pmem','pguess')
   par_ml <- par_ml[,c('id','pmem','kappa')]
   
-  fit_bmm <- bmm(bmf(thetat ~ 1 + (1|id),
-                     kappa ~ 1 + (1|id)),
-                 data = data,
-                 model = mixture2p('y'),
-                 cores = cores,
-                 backend = 'cmdstanr',
-                 refresh = 0)
+  fit_bmm <- bmm::bmm(bmm::bmf(thetat ~ 1 + (1|id),
+                               kappa ~ 1 + (1|id)),
+                      data = data,
+                      model = bmm::mixture2p('y'),
+                      cores = cores,
+                      backend = 'cmdstanr',
+                      refresh = 0)
   
-  fe_bmm <- fixef(fit_bmm)[c('kappa_Intercept','thetat_Intercept'),1]
-  re_bmm <- ranef(fit_bmm)$id[,1,]
+  fe_bmm <- brms::fixef(fit_bmm)[c('kappa_Intercept','thetat_Intercept'),1]
+  re_bmm <- brms::ranef(fit_bmm)$id[,1,]
   par_bmm <- as.data.frame(t(t(re_bmm) + fe_bmm))
   par_bmm$id <- 1:N_subj
   names(par_bmm) <- c('kappa','pmem','id')
   par_bmm <- par_bmm[,c('id','pmem','kappa')]
+  
+  pars$n_sub <- N_subj
+  pars$n_trials <- N_obs
+  
+  par_ml$n_sub <- N_subj
+  par_ml$n_trials <- N_obs
+  
+  par_bmm$n_sub <- N_subj
+  par_bmm$n_trials <- N_obs
+  
   par_bmm$kappa <- exp(par_bmm$kappa)
   par_bmm$pmem <- exp(par_bmm$pmem)/(1+exp(par_bmm$pmem))
   
-  return(list(pars = pars, par_ml = par_ml, par_bmm = par_bmm, fit_bmm = fit_bmm, data = data))
+  fe_bmm <- as.data.frame(t(fe_bmm))
+  fe_bmm$n_sub <- N_subj
+  fe_bmm$n_trials <- N_obs
+  
+  return(list(hyperPars = c(pmem = thetat_mu, kappa = log_kappa, n_sub = N_subj, n_trials = N_obs), 
+              pars = pars, 
+              par_ml = par_ml, 
+              par_bmm = par_bmm,
+              hyperPar_bmm = fe_bmm))
 }
 
 fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_kappa, log_kappa_sd, 
@@ -103,14 +122,14 @@ fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_ka
   
   fit_bmm <- list()
   fit_bmm[[1]] <- bmm(bmf(thetat ~ 1 + (cond || id),
-                         kappa ~ 1 + (cond || id)),
-                     data = data,
-                     model = mixture2p('y'),
-                     cores = cores,
-                     backend = 'cmdstanr',
-                     save_pars = save_pars(all = TRUE),
-                     sample_prior = TRUE,
-                     refresh = 0)
+                          kappa ~ 1 + (cond || id)),
+                      data = data,
+                      model = mixture2p('y'),
+                      cores = cores,
+                      backend = 'cmdstanr',
+                      save_pars = save_pars(all = TRUE),
+                      sample_prior = TRUE,
+                      refresh = 0)
   
   fit_bmm[[2]] <- bmm(bmf(thetat ~ cond + (cond || id),
                           kappa ~ 1 + (cond || id)),
@@ -122,7 +141,7 @@ fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_ka
                       save_pars = save_pars(all = TRUE),
                       sample_prior = TRUE,
                       refresh = 0)
-      
+  
   fit_bmm[[3]] <- bmm(bmf(thetat ~ 1 + (cond || id),
                           kappa ~ cond + (cond || id)),
                       data = data,
@@ -132,9 +151,9 @@ fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_ka
                       save_pars = save_pars(all = TRUE),
                       sample_prior = TRUE,
                       refresh = 0)
-      
+  
   fit_bmm[[4]] <- bmm(bmf(thetat ~ cond + (cond || id),
-                      kappa ~ cond + (cond || id)),
+                          kappa ~ cond + (cond || id)),
                       data = data,
                       model = mixture2p('y'),
                       prior = set_prior("normal(0, 1)", class = "b", nlpar = "thetat"),
@@ -143,7 +162,7 @@ fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_ka
                       save_pars = save_pars(all = TRUE),
                       sample_prior = TRUE,
                       refresh = 0)
-          
+  
   par_bmm <- list()
   for (i in 1:length(fit_bmm)) {
     par_names <- grep('thetat_|kappa_', rownames(fixef(fit_bmm[[i]])), value = TRUE)
@@ -174,8 +193,8 @@ fit_ml_and_bmm_cond_diff <- function(N_subj, N_obs, thetat_mu, thetat_sd, log_ka
   }
   return(list(pars = pars, par_ml = par_ml, par_bmm = par_bmm, fit_bmm = fit_bmm, data = data)) 
 }
-  
-  
+
+
 
 plot_par_rec <- function(fits) {
   with(fits, {
@@ -207,9 +226,9 @@ par_rec_stats <- function(fits) {
                sqrt(mean((pars$pmem - par_bmm$pmem)^2)),
                sqrt(mean((pars$kappa - par_bmm$kappa)^2))),
       pop_par_diff = c(mean(pars$pmem) - mean(par_ml$pmem),
-                      mean(pars$kappa) - mean(par_ml$kappa),
-                      mean(pars$pmem) - mean(par_bmm$pmem),
-                      mean(pars$kappa) - mean(par_bmm$kappa))
+                       mean(pars$kappa) - mean(par_ml$kappa),
+                       mean(pars$pmem) - mean(par_bmm$pmem),
+                       mean(pars$kappa) - mean(par_bmm$kappa))
     )
   })
 }
@@ -221,7 +240,7 @@ par_rec_stats_cond <- function(fits) {
     data.frame(
       formula = rep(c('',sapply(par_bmm, function(x) {
         paste0(capture.output(print(attr(x, 'formula'))), collapse=', ')
-        })), each = 2),
+      })), each = 2),
       engine = c('ML','ML', rep('BMM', 2*n_bmm)),
       param = rep(c('pmem','kappa'), n_bmm + 1),
       r = c(cor.test(pars$pmem, par_ml$pmem)$estimate,
@@ -229,19 +248,19 @@ par_rec_stats_cond <- function(fits) {
             sapply(par_bmm, function(x) {
               c(cor.test(pars$pmem, x$pmem)$estimate,
                 cor.test(pars$kappa, x$kappa)$estimate)
-              })),
+            })),
       rmse = c(sqrt(mean((pars$pmem - par_ml$pmem)^2)),
                sqrt(mean((pars$kappa - par_ml$kappa)^2)),
                sapply(par_bmm, function(x) {
                  c(sqrt(mean((pars$pmem - x$pmem)^2)),
                    sqrt(mean((pars$kappa - x$kappa)^2)))
-                 })),
+               })),
       pop_par_diff = c(mean(pars$pmem) - mean(par_ml$pmem),
                        mean(pars$kappa) - mean(par_ml$kappa),
                        sapply(par_bmm, function(x) {
                          c(mean(pars$pmem) - mean(x$pmem),
                            mean(pars$kappa) - mean(x$kappa))
-                         }))
+                       }))
     )
   })
 }

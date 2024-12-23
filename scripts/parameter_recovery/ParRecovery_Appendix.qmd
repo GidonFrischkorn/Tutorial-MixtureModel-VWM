@@ -1,0 +1,98 @@
+---
+title: "ML vs. BMM parameter recovery of the two-parameter mixture model"
+author: "Gidon T. Frischkorn & Ven Popov"
+format: html
+---
+
+```{r SetUp}
+pacman::p_load(here, tidytable, mixtur, brms, bmm, ggplot2, ggdist)
+HOME <- here()
+```
+
+
+## Design of the parameter recovery simulation
+
+We generated subject parameters for 20, 40, or 80 subjects of the two parameter mixture model. Using these subject parameters we generated data using the random generation function for the two-parameter mixture model implemented in bmm (`rmixture2p()`) with four different numbers of observations per subject: 25, 50, 100, and 200. Then we estimated parameters for the two-parameter mixture model using subject-wise maximum likelihood estimation implemented in the `mixtur` r package, and using hierarchical Bayesian estimation implemented in the `bmm` package. We repeated this procedure 250 times to approximate the variability in parameter estimation due to random noise in the data generating process. The means of the normal distributions for generating subject parameters were randomly drawn from uniform distributions in each simulation run. For `pmem` the range was from 0.3 to 0.95, and for kappa the range was from 2 to 15.
+
+```{r Simulations}
+# n_trial_conditions <- c(50,100,200)
+# for(n_trials in n_trial_conditions) {
+#   results_file_name <- glue("par_rec_fits{n_trials}.rds")
+#   
+#   if (!file.exists(here("output",results_file_name))) {
+#     simulation_file_name <- glue("mixture2p_{n_trials}obs.R")
+#     source(simulation_file_name)
+#     rm(simulation_file_name)
+#   }
+# }
+# rm(n_trials, results_file_name)
+```
+
+## Results of the parameter recovery simulation
+
+```{r LoadResults}
+source(here("scripts","parameter_recovery","collect_parRecovery_results.R"))
+```
+
+As dependent variables of the parameter recovery, we calculated recovery of subject level parameters via the correlation and root mean square error (RMSE) between the data generating subject parameters and the estimated parameters from the ML and BMM approach for each simulation condition over repetitions. Additionally, we calculated recovery of the hyper parameters (i.e. means for pmem and kappa in each simulated sample) via the correlation and RMSE between the data generating hyper parameters and the estimated means form the ML and BMM approach. The first analysis gives a general assessment of parameter recovery of subject level parameters, whereas the second analysis provides information how well suited the different approaches are to capture mean differences between samples or experimental conditions.
+
+```{r PrepaerRecovery}
+recovery_hyperPar <- df_hyperPar %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>% 
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  summarise(
+    cor = cor(gen, estimate),
+    rmse = sqrt(mean((gen - estimate)^2)),
+    .by = c("n_sub","n_trials", "parameter","method")
+  )
+
+plot_hyperPar <- df_hyperPar %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>% 
+  mutate(method = stringr::str_remove(method,"est_"))
+
+recovery_subPar <- df_subPar %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>%
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  summarise(
+    cor = cor(gen, estimate),
+    rmse = sqrt(mean((gen - estimate)^2)),
+    .by = c("n_sub","n_trials", "parameter","method")
+  )
+```
+
+```{r}
+ggplot(plot_hyperPar %>% filter(parameter == "pmem"),
+       aes(x = gen, y = estimate, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(plot_hyperPar %>% filter(parameter == "kappa"),
+       aes(x = gen, y = estimate, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm")
+```
+
+
+```{r}
+ggplot(
+  data = recovery_subPar,
+  aes(x = cor, y = as.factor(n_trials), fill = method)
+) + facet_grid(n_sub ~ parameter, scales = "free") +
+  stat_halfeye(alpha = 0.7, position = position_dodge(-0.2))
+```
+
+```{r}
+ggplot(
+  data = recovery_subPar,
+  aes(x = rmse, y = as.factor(n_trials), fill = method)
+) + facet_grid(n_sub ~ parameter, scales = "free") +
+  stat_halfeye(alpha = 0.7, position = position_dodge(-0.2))
+```
+
+
