@@ -15,7 +15,7 @@ cond_N_subj <- c(20,40,80)
 cond_N_obs <- c(25,50,100,200)
 range_thetat_mu <- qlogis(c(0.3,0.95))
 thetat_sd <- 0.3
-rnage_log_kappa <- log(c(2,15))
+range_log_kappa <- log(c(2,15))
 log_kappa_sd <- 0.2
 
 df_conditions <- expand.grid(
@@ -24,7 +24,7 @@ df_conditions <- expand.grid(
 )
 
 ## Report on progress automatically
-handlers("cli")
+handlers(global = TRUE, "cli")
 
 ## Parallelize on local machine
 plan(multisession)
@@ -40,7 +40,7 @@ reprex <- local({
       N_obs <- df_conditions$n_trials[j]
       
       thetat_mu <- runif(1, range_thetat_mu[1], range_thetat_mu[2])
-      log_kappa <- runif(1, rnage_log_kappa[1], rnage_log_kappa[2])
+      log_kappa <- runif(1, range_log_kappa[1], range_log_kappa[2])
       results_list <- fit_ml_and_bmm(N_sub, N_obs = N_obs, thetat_mu, thetat_sd, log_kappa, log_kappa_sd, cores = 1)
       
       saveRDS(results_list, here("output","recovery_results",glue('par_rec_fits_{N_sub}sub_{N_obs}trials_rep{i}.rds')))

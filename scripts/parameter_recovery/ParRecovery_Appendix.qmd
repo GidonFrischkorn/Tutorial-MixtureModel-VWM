@@ -1,7 +1,12 @@
 ---
 title: "ML vs. BMM parameter recovery of the two-parameter mixture model"
 author: "Gidon T. Frischkorn & Ven Popov"
-format: html
+execute:
+  echo: false
+  output: true
+  warnings: false
+  error: false
+format: docx
 ---
 
 ```{r SetUp}
@@ -10,22 +15,19 @@ HOME <- here()
 ```
 
 
-## Design of the parameter recovery simulation
+## Procedure and Design of the parameter recovery simulation
 
-We generated subject parameters for 20, 40, or 80 subjects of the two parameter mixture model. Using these subject parameters we generated data using the random generation function for the two-parameter mixture model implemented in bmm (`rmixture2p()`) with four different numbers of observations per subject: 25, 50, 100, and 200. Then we estimated parameters for the two-parameter mixture model using subject-wise maximum likelihood estimation implemented in the `mixtur` r package, and using hierarchical Bayesian estimation implemented in the `bmm` package. We repeated this procedure 250 times to approximate the variability in parameter estimation due to random noise in the data generating process. The means of the normal distributions for generating subject parameters were randomly drawn from uniform distributions in each simulation run. For `pmem` the range was from 0.3 to 0.95, and for kappa the range was from 2 to 15.
+First, we generated subject parameters for 20, 40, or 80 subjects of the two parameter mixture model. Second, using these subject parameters we generated data using the random generation function for the two-parameter mixture model implemented in bmm (`rmixture2p()`) with four different numbers of observations per subject: 25, 50, 100, and 200. Third, we then estimated parameters for the two-parameter mixture model using subject-wise maximum likelihood estimation implemented in the `mixtur` package, and using hierarchical Bayesian estimation implemented in the `bmm` package. We repeated this parameter recovery procedure 200 times for each condition combination (i.e. a total of 2400 = 3 * 4 * 200 times) to approximate the variability in parameter estimation due to random noise in the data generating process. 
+
+Over repetitions, the means of $P_{mem}$ & $\kappa$ for generating subject parameters were randomly drawn from uniform distributions. For $P_{mem}$ means ranged from 0.3 to 0.95, and for $\kappa$ means ranged from 2 to 15. To ensure that both $P_{mem}$ and $\kappa$ were in the correct parameter range, subject parameters for $P_{mem}$ were drawn from a normal distribution on the logit scale with a standard deviation of $\sigma = 0.3$: $logit(P_{mem}) \sim N(logit(\mu),0.3)$, and for $\kappa$ were drawn from a normal distribution on the log scale with a standard deviation of $\sigma =  0.3$: $log(\kappa) \sim N(log(\mu),0.2)$[^1]
+
+[^1]: The generation of subject parameters on the logit scale for $P_{mem}$ and on the log scale for $\kappa$ slighty favors the `bmm` implementation for parameter estimation in the hierarchical model, as these distributions are what is assumed as random effects on the parmaeter scale. However, we think these distributions over subject represent an adequate reflection of variation over subjects.
 
 ```{r Simulations}
-# n_trial_conditions <- c(50,100,200)
-# for(n_trials in n_trial_conditions) {
-#   results_file_name <- glue("par_rec_fits{n_trials}.rds")
-#   
-#   if (!file.exists(here("output",results_file_name))) {
-#     simulation_file_name <- glue("mixture2p_{n_trials}obs.R")
-#     source(simulation_file_name)
-#     rm(simulation_file_name)
-#   }
-# }
-# rm(n_trials, results_file_name)
+n_sim_results <- length(list.files(path = here("output","recovery_results")))
+if (n_sim_results < 2400) {
+  source(here("scripts","parameter_recovery","mixture2p_parRec_simulation.R"))
+}
 ```
 
 ## Results of the parameter recovery simulation
@@ -34,65 +36,369 @@ We generated subject parameters for 20, 40, or 80 subjects of the two parameter 
 source(here("scripts","parameter_recovery","collect_parRecovery_results.R"))
 ```
 
-As dependent variables of the parameter recovery, we calculated recovery of subject level parameters via the correlation and root mean square error (RMSE) between the data generating subject parameters and the estimated parameters from the ML and BMM approach for each simulation condition over repetitions. Additionally, we calculated recovery of the hyper parameters (i.e. means for pmem and kappa in each simulated sample) via the correlation and RMSE between the data generating hyper parameters and the estimated means form the ML and BMM approach. The first analysis gives a general assessment of parameter recovery of subject level parameters, whereas the second analysis provides information how well suited the different approaches are to capture mean differences between samples or experimental conditions.
+As dependent variables of the parameter recovery, we calculated recovery of the hyper parameters (i.e. means for pmem and kappa in each simulated sample) via the correlation and the normalized root mean square error (RMSE) between the data generating hyper parameters and the estimated means form the ML and BMM approach on their native scale ($P_{mem} = [0,1]$, $\kappa = [0,\infty]$). Additionally, we calculated recovery of subject level parameters via the correlation and RMSE between the data generating subject parameters and the estimated parameters from the ML and BMM approach for each simulation condition over repetitions. The first analysis provides information how well suited the different approaches are to capture mean differences between samples or experimental condition, whereas the second analysis gives a general assessment of parameter recovery of subject level parameters.
 
 ```{r PrepaerRecovery}
+df_genPars_sample <- df_hyperPar %>% 
+  select(n_rep, n_trials, n_sub, parameter, gen) %>% 
+  pivot_wider(values_from = gen, names_from = parameter)
+
 recovery_hyperPar <- df_hyperPar %>% 
   pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>% 
   mutate(method = stringr::str_remove(method,"est_")) %>% 
   summarise(
     cor = cor(gen, estimate),
-    rmse = sqrt(mean((gen - estimate)^2)),
+    rmse = sqrt(mean((gen - estimate)^2)) / mean(gen),
+    bias = SimDesign::bias(estimate, parameter = gen),
     .by = c("n_sub","n_trials", "parameter","method")
   )
 
 plot_hyperPar <- df_hyperPar %>% 
   pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>% 
-  mutate(method = stringr::str_remove(method,"est_"))
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  left_join(df_genPars_sample)
 
 recovery_subPar <- df_subPar %>% 
   pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>%
   mutate(method = stringr::str_remove(method,"est_")) %>% 
   summarise(
     cor = cor(gen, estimate),
-    rmse = sqrt(mean((gen - estimate)^2)),
+    rmse = sqrt(mean((gen - estimate)^2)) / mean(gen),
+    bias = SimDesign::bias(estimate, parameter = gen),
+    .by = c("n_rep","n_sub","n_trials", "parameter","method")
+  ) %>% 
+  left_join(df_genPars_sample)
+```
+
+## Recovery of Sample Means
+
+### Probability of recalling items from memory
+
+In @fig-rec-hyperPar-pmem you see the recovery of sample means over the 200 repetitions of the simulation for the probability of recalling items from memory. Both the ML and BMM implementation recover the sample means quite well, although BMM seems to be slightly more accurate especially when $P_{mem}$ is smaller.
+
+```{r}
+#| label: fig-rec-hyperPar-pmem
+#| fig-cap: ""
+pmem_cors <- recovery_hyperPar %>% filter(parameter == "pmem")
+
+plot_rec_hyperPar_pmem <- ggplot(plot_hyperPar %>% filter(parameter == "pmem"),
+       aes(x = gen, y = estimate, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_text(data = pmem_cors %>% filter(method == "ml"), show.legend = FALSE,
+            aes(label=paste("r =", round(cor,2), sep=" ")), x=0.45, y=0.8) +
+  geom_text(data = pmem_cors %>% filter(method == "bmm"), show.legend = FALSE, 
+            aes(label=paste("r =", round(cor,2), sep=" ")), x=0.45, y=0.9) +
+  geom_text(data = pmem_cors %>% filter(method == "ml"), show.legend = FALSE,
+            aes(label=paste("rmse =", round(rmse,2), sep=" ")), x=0.75, y=0.35) +
+  geom_text(data = pmem_cors %>% filter(method == "bmm"), show.legend = FALSE, 
+            aes(label=paste("rmse =", round(rmse,2), sep=" ")), x=0.75, y=0.45) +
+  labs(y = "Estimated Parameter Mean", x = "True Parameter Mean",
+       color = "Estimation\nMethod", fill = "Estimation\nMethod",
+       title = "Recovery of Sample Means: pmem") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_hyperPar_pmem.jpeg"),
+       plot = plot_rec_hyperPar_pmem,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_hyperPar_pmem.jpeg"))
+```
+
+This is even more evident when considering the bias in the estimation of sample means as a function of the generating sample mean as shown in @fig-bias-hyperPar-pmem. Here we can clearly see that estimating $P_{mem}$ with the ML implementation leads to  overestimation of sample means if the true sample mean of $P_{mem}$ is small, whereas the Bayesian hierarchical estimation does not show large bias over the whole range of simulated $P_{mem}$ sample means.
+
+```{r}
+#| label: fig-bias-hyperPar-pmem
+#| fig-cap: ""
+
+plot_bias_hyperPar_pmem <- ggplot(plot_hyperPar %>% filter(parameter == "pmem"),
+       aes(x = pmem, y = estimate - gen, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  geom_hline(yintercept = 0) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  labs(y = "Bias (Estimated - True Par.)", x = "Sample Mean: Pmem",
+       color = "Estimation\nMethod", fill = "Estimation\nMethod",
+       title = "Bias in the estimation of the Sample Means: pmem") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_hyperPar_pmem_bias.jpeg"),
+       plot = plot_bias_hyperPar_pmem,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_hyperPar_pmem_bias.jpeg"))
+```
+
+### Precision of Memory Representations
+
+For sample means of $\kappa$, the differences between estimation with subject-wise ML compared to hierarchical Bayesian estimation are much stronger than for $P_{mem}$. @fig-rec-hyperPar-kappa clearly shows that the hierarchical Bayesian estimation implemented in `bmm` outperforms subject-wise ML, especially with less than 100 observations per subject. Although the rank ordering of the $\kappa$ sample means is still acceptable for more than 100 observations per subject for the ML approach, there are severe biases towards overestimating $\kappa$ with lower numbers of observations per participant. Although the Bayesian hierarchical approach is also slightly affected by the total amount of data used to estimate the sample mean of $\kappa$ it shows remarkably good recovery even with as little as 25 observations per subjects.
+
+```{r}
+#| label: fig-rec-hyperPar-kappa
+#| fig-cap: ""
+kappa_cors <- recovery_hyperPar %>% filter(parameter == "kappa")
+
+plot_rec_hyperPar_kappa <- ggplot(plot_hyperPar %>% filter(parameter == "kappa"),
+       aes(x = gen, y = estimate, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  geom_abline(slope = 1, intercept = 0) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  geom_text(data = kappa_cors %>% filter(method == "ml"), show.legend = FALSE,
+            aes(label=paste("r =", round(cor,2), sep=" ")), x=7, y=40) +
+  geom_text(data = kappa_cors %>% filter(method == "bmm"), show.legend = FALSE, 
+            aes(label=paste("r =", round(cor,2), sep=" ")), x=7, y=52) +
+  geom_text(data = kappa_cors %>% filter(method == "ml"), show.legend = FALSE,
+            aes(label=paste("rmse =", round(rmse,2), sep=" ")), x=7, y=66) +
+  geom_text(data = kappa_cors %>% filter(method == "bmm"), show.legend = FALSE, 
+            aes(label=paste("rmse =", round(rmse,2), sep=" ")), x=7, y=78) +
+  labs(y = "Estimated Parameter Mean", x = "True Parameter Mean",
+       color = "Estimation\nMethod", fill = "Estimation\nMethod",
+       title = "Recovery of Sample Means: kappa") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_hyperPar_kappa.jpeg"),
+       plot = plot_rec_hyperPar_kappa,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_hyperPar_kappa.jpeg"))
+```
+
+Previous recovery simulations have indicated that the recovery of $\kappa$ gets more noisy as the proportion of recalling items from memory reduces and less data provides information on the precision of memory responses. @fig-bias-hyperPar-kappa, illustrates that the subject-wise ML implementation indeed shows exactly this pattern when considering the estimation bias, wheres the hierarchical Bayesian implementations does not shown this trend. Similar plots for parameter recovery will be shown below for the subject level estimates.
+
+```{r}
+#| label: fig-bias-hyperPar-kappa
+#| fig-cap: ""
+plot_bias_hyperPar_kappa <- ggplot(plot_hyperPar %>% filter(parameter == "kappa"),
+       aes(x = pmem, y = estimate - gen, color = method, fill = method)) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  geom_hline(yintercept = 0) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  coord_cartesian(ylim = c(-1,10)) +
+  labs(y = "Bias (Estimated - True Par.)", x = "Sample Mean: Pmem",
+       color = "Estimation\nMethod", fill = "Estimation\nMethod",
+       title = "Bias in the estimation of the Sample Means: kappa") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_hyperPar_kappa_bias.jpeg"),
+       plot = plot_bias_hyperPar_kappa,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_hyperPar_kappa_bias.jpeg"))
+```
+
+## Recovery of Subject Parameters
+
+All in all, the recovery of subject parameters provides a similar picture. As would be expected, recovery was worse compared to the recovery of sample means, but still the hierarchical Bayesian implementation consistently outperformed the subject-wise ML estimation. @fig-rec-subPar-cor illustrates the distribution of correlations of generating with recovered subject parameters for both $P_{mem}$ and $\kappa$. It is evident that there is a lot of variability in the recovery, that is likely in part due to the smaller sample sizes compared to other simulations (e.g. Grange & Moore, 2020) and thus variability in the range of parameters (despite a constant standard deviation for generating subject parameters). However, to adequately gauge the estimation of sample means in experimental settings we consciously choose to simulate smaller samples.
+
+```{r}
+#| label: fig-rec-subPar-cor
+#| fig-cap: ""
+recovery_subPar_avg_largePmem <- df_subPar %>% 
+  pivot_wider(names_from = parameter, values_from = c(gen,est_ml, est_bmm),
+              names_glue = "{parameter}-{.value}") %>% 
+  filter(`pmem-gen` > 0.6) %>% 
+  pivot_longer(cols = c("pmem-gen", "pmem-est_ml", "pmem-est_bmm", "kappa-gen", "kappa-est_ml", "kappa-est_bmm")) %>% 
+  mutate(parameter = stringr::str_split_i(name, "-",1),
+         parValue = stringr::str_split_i(name, "-",2)) %>% 
+  select(-name) %>% 
+  pivot_wider(names_from = parValue, values_from = value) %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>%
+  left_join(df_genPars_sample) %>% 
+  filter(pmem > .6) %>% 
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  summarise(
+    cor = cor(gen, estimate),
+    rmse = sqrt(mean((gen - estimate)^2)) / mean(gen),
+    bias = SimDesign::bias(estimate, parameter = gen),
     .by = c("n_sub","n_trials", "parameter","method")
-  )
-```
+  ) %>% 
+  pivot_wider(names_from = method,
+              values_from = c(cor,rmse,bias)) %>% 
+  select(parameter, n_sub, n_trials, cor_ml, rmse_ml, bias_ml, cor_bmm, rmse_bmm, bias_bmm) %>% 
+  arrange(parameter, n_sub, n_trials)
 
-```{r}
-ggplot(plot_hyperPar %>% filter(parameter == "pmem"),
-       aes(x = gen, y = estimate, color = method, fill = method)) +
-  facet_grid(n_sub ~ n_trials) +
-  geom_abline(slope = 1, intercept = 0) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm")
-```
+write.csv(recovery_subPar_avg_largePmem,
+           file = here("output","Table_Recovery_SubPar_largePmem.csv"))
 
-```{r}
-ggplot(plot_hyperPar %>% filter(parameter == "kappa"),
-       aes(x = gen, y = estimate, color = method, fill = method)) +
-  facet_grid(n_sub ~ n_trials) +
-  geom_abline(slope = 1, intercept = 0) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm")
-```
+recovery_subPar_avg_lowPmem <- df_subPar %>% 
+  pivot_wider(names_from = parameter, values_from = c(gen,est_ml, est_bmm),
+              names_glue = "{parameter}-{.value}") %>% 
+  filter(`pmem-gen` < 0.6) %>% 
+  pivot_longer(cols = c("pmem-gen", "pmem-est_ml", "pmem-est_bmm", "kappa-gen", "kappa-est_ml", "kappa-est_bmm")) %>% 
+  mutate(parameter = stringr::str_split_i(name, "-",1),
+         parValue = stringr::str_split_i(name, "-",2)) %>% 
+  select(-name) %>% 
+  pivot_wider(names_from = parValue, values_from = value) %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>%
+  left_join(df_genPars_sample) %>% 
+  filter(pmem > .6) %>% 
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  summarise(
+    cor = cor(gen, estimate),
+    rmse = sqrt(mean((gen - estimate)^2)) / mean(gen),
+    bias = SimDesign::bias(estimate, parameter = gen),
+    .by = c("n_sub","n_trials", "parameter","method")
+  ) %>% 
+  pivot_wider(names_from = method,
+              values_from = c(cor,rmse,bias)) %>% 
+  select(parameter, n_sub, n_trials, cor_ml, rmse_ml, bias_ml, cor_bmm, rmse_bmm, bias_bmm) %>% 
+  arrange(parameter, n_sub, n_trials)
+
+write.csv(recovery_subPar_avg_lowPmem,
+           file = here("output","Table_Recovery_SubPar_lowPmem.csv"))
+
+recovery_subPar_avg <- df_subPar %>% 
+  pivot_longer(cols = c(est_ml, est_bmm), names_to = "method", values_to = "estimate") %>%
+  left_join(df_genPars_sample) %>% 
+  filter(pmem > .6) %>% 
+  mutate(method = stringr::str_remove(method,"est_")) %>% 
+  summarise(
+    cor = cor(gen, estimate),
+    rmse = sqrt(mean((gen - estimate)^2)) / mean(gen),
+    bias = SimDesign::bias(estimate, parameter = gen),
+    .by = c("n_sub","n_trials", "parameter","method")
+  ) %>% 
+  pivot_wider(names_from = method,
+              values_from = c(cor,rmse,bias)) %>% 
+  select(parameter, n_sub, n_trials, cor_ml, rmse_ml, bias_ml, cor_bmm, rmse_bmm, bias_bmm) %>% 
+  arrange(parameter, n_sub, n_trials)
 
 
-```{r}
-ggplot(
+plot_rec_subPar_cor <- ggplot(
   data = recovery_subPar,
   aes(x = cor, y = as.factor(n_trials), fill = method)
-) + facet_grid(n_sub ~ parameter, scales = "free") +
-  stat_halfeye(alpha = 0.7, position = position_dodge(-0.2))
+) + facet_grid(n_sub ~ parameter, scales = "free", labeller = label_both) +
+  stat_halfeye(alpha = 0.7, position = position_dodge(-0.5)) +
+  labs(x = "Correlation between true & estimated parameters (in each sample)",
+       y = "Number of trials (per Participant)",
+       fill = "Estimation\nMethod") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_subPar_cor.jpeg"),
+       plot = plot_rec_subPar_cor,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_subPar_cor.jpeg"))
 ```
+
+The correlation estimates shown in @fig-rec-subPar-cor obviously depend on the variability of parameters in the simulated sample. In our simulations this variabilty was considerably less than in other simulations (e.g. Grange & Moore, 2020) that covered the full range of reasonable parameter values. Instead, we choose to simulate subject parameters with smaller standard deviations that are likely to find in common experiments and samples.
+
+A more independent indicator of recovery that does not depend on the standard deviation of the simulated sample is the RMSE. @fig-rec-subPar-rmse shows the RMSE of recovery of subject parameters. Here we can see, that the hierarchical Bayesian estimation has consistently lower RMSE values even for very low number of observations per participant.
 
 ```{r}
-ggplot(
+#| label: fig-rec-subPar-rmse
+#| fig-cap: ""
+
+plot_rec_subPar_rmse <- ggplot(
   data = recovery_subPar,
   aes(x = rmse, y = as.factor(n_trials), fill = method)
-) + facet_grid(n_sub ~ parameter, scales = "free") +
-  stat_halfeye(alpha = 0.7, position = position_dodge(-0.2))
+) + facet_grid(n_sub ~ parameter, scales = "free", labeller = label_both) +
+  stat_halfeye(alpha = 0.7, position = position_dodge(-0.5)) +
+  labs(x = "RMSE of estimated parameters (in each sample)",
+       y = "Number of trials (per Participant)",
+       fill = "Estimation\nMethod") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_subPar_rmse.jpeg"),
+       plot = plot_rec_subPar_rmse,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_subPar_rmse.jpeg"))
 ```
 
+```{r brms_rec_subPar}
+df_analysis_subPar <- recovery_subPar
+
+# prepare dependent variable & predictors
+df_analysis_subPar$cor_z <- psych::fisherz(df_analysis_subPar$cor)
+df_analysis_subPar$method <- as.factor(df_analysis_subPar$method)
+df_analysis_subPar$n_trials <- (df_analysis_subPar$n_trials - 50)/10
+df_analysis_subPar$n_sub <- (df_analysis_subPar$n_sub - 40)/10
+df_analysis_subPar$pmem <- df_analysis_subPar$pmem - 0.6
+df_analysis_subPar$kappa <- df_analysis_subPar$kappa - 5
+contrasts(df_analysis_subPar$method) <- contr.sum
+
+# seperate data sets for pmem & kappa
+df_analysis_subPar_pmem <- df_analysis_subPar %>% dplyr::filter(parameter == "pmem")
+df_analysis_subPar_kappa <- df_analysis_subPar %>% dplyr::filter(parameter == "kappa")
+
+# estimate Bayesian hierarchical model predicting recovery
+model_rec_subPar_pmem <- brm(
+  formula = bf(cor_z ~ 1 + method*n_sub + method*n_trials + pmem*method + kappa*method + (1 || n_rep)),
+  data = df_analysis_subPar_pmem,
+  family = gaussian(),
+  prior(normal(0, 1), class = b),
+  backend = "cmdstanr",
+  cores = 4,
+  file = here("output","recovery_subject_pmem"),
+  file_refit = "on_change",
+  warmup = 1000,
+  iter = 16000
+)
+
+# estimate Bayesian hierarchical model predicting recovery
+model_rec_subPar_kappa <- brm(
+  formula = bf(cor_z ~ 1 + method*n_sub + method*n_trials + pmem*method + kappa*method + (1 || n_rep)),
+  data = df_analysis_subPar_kappa,
+  family = gaussian(),
+  prior = prior(normal(0, 1), class = b),
+  backend = "cmdstanr",
+  cores = 4,
+  file = here("output","recovery_subject_kappa"),
+  file_refit = "on_change",
+  warmup = 1000,
+  iter = 16000
+)
+
+# BF_parameters_pmem <- bayestestR::bayesfactor_parameters(model_rec_subPar_pmem)
+# BF_parameters_kappa <- bayestestR::bayesfactor_parameters(model_rec_subPar_kappa)
+```
+
+As for the sample means, we also explored how recovery of subject parameter changes as the range of parameters differs. @fig-rec-subPar-rmse-byPmem-pmem shows how the RMSE changes as a function of the sample mean of $P_{mem}$. The results indicate that the RMSE is smaller the larger the sample mean of $P_{mem}$, this effect is however stronger for the recovery with subject wise ML than for Bayesian hierarchical estimation.
+
+```{r RMSEbyPmem_SubPars_pmem}
+#| label: fig-rec-subPar-rmse-byPmem-pmem
+#| fig-cap: ""
+#| 
+plot_rec_subPar_rmse_pmem_byPmem <- ggplot(data = recovery_subPar %>% filter(parameter == "pmem"),
+       aes(x = pmem, y = rmse, color = method)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  coord_cartesian(ylim = c(0, 1.5)) +
+  labs(y = "RMSE",
+       x = "Sample Mean: Pmem",
+       title = "RMSE for Subject Parameters: Pmem",
+       color = "Estimation\nMethod") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_subPar_pmem_rmse_byPmem.jpeg"),
+       plot = plot_rec_subPar_rmse_pmem_byPmem,
+       width = 8, height = 8)
+knitr::include_graphics(here("figures","parRec_subPar_pmem_rmse_byPmem.jpeg"))
+```
+
+We find a similar pattern for the subject recovery of $\kappa$ as a function of the sample mean of $P_{mem}$, as shown in @fig-rec-subPar-rmse-byPmem-kappa, however for $\kappa$ the dependency of recovery on the sample mean of $P_{mem}$ is much stronger for subject-wise ML estimation, whereas the hierarchical Bayesian estimation shows almost no dependency of subject recovery of $\kappa$ by the sample mean of $P_{mem}$.
+
+```{r RMSEbyPmem_SubPars_kappa}
+#| label: fig-rec-subPar-rmse-byPmem-kappa
+#| fig-cap: ""
+#| fig-width: 8
+#| fig-height: 8
+plot_rec_subPar_rmse_kappa_byPmem <- ggplot(data = recovery_subPar %>% filter(parameter == "kappa"),
+       aes(x = pmem, y = rmse, color = method)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "loess", formula = y ~ x) +
+  facet_grid(n_sub ~ n_trials, labeller = label_both) +
+  coord_cartesian(ylim = c(0, 20)) +
+  labs(y = "RMSE",
+       x = "Sample Mean: Pmem",
+       title = "RMSE for Subject Parameters: kappa",
+       color = "Estimation\nMethod") +
+  theme_minimal()
+
+ggsave(filename = here("figures","parRec_subPar_kappa_rmse_byPmem.jpeg"),
+       plot = plot_rec_subPar_rmse_kappa_byPmem,
+       width = 8, height = 8)
+# knitr::include_graphics(here("figures","parRec_subPar_kappa_rmse_byPmem.jpeg"))
+plot_rec_subPar_rmse_kappa_byPmem
+```
 

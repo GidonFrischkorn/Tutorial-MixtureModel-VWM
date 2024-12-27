@@ -7,6 +7,7 @@ recovery_files <- list.files(here("output","recovery_results"), pattern = "par_r
 
 # read all recovery files
 fits <- lapply(recovery_files, readRDS)
+rm(recovery_files)
 
 nReplications <- length(fits)
 
@@ -50,7 +51,8 @@ for (i in 1:nReplications) {
   cond_hyperPar_bmm$pmem <- exp(cond_hyperPar_bmm$pmem)/(1+exp(cond_hyperPar_bmm$pmem))
   df_hyperPar_bmm <- rbind(df_hyperPar_bmm, cond_hyperPar_bmm)
 }
-rm(cond_hyperPar_bmm, cond_hyperPar_gen, cond_subPar_gen, cond_subPar_ml, cond_subPar_bmm)
+rm(cond_hyperPar_bmm, cond_hyperPar_gen, cond_subPar_gen, cond_subPar_ml, cond_subPar_bmm,
+   i, nReplications, fits)
 
 df_hyperPar_ml <- df_subPar_ml %>% 
   summarise(kappa = mean(kappa),
