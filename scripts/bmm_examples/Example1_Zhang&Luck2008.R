@@ -212,7 +212,7 @@ pMem_plot <- ggplot(data = fixedFX_draws %>% filter(par == "thetat"),
              position = position_nudge(x = .15, y = 0)) +
   scale_fill_grey(start = 0, end = .8) +
   scale_color_grey(start = 0, end = .8) +
-  labs(x = "Set Size", y = expression(P[mem]), title = "B") +
+  labs(x = "Set Size", y = expression(P[mem]), title = "A") +
   clean_plot()
 pMem_plot
 

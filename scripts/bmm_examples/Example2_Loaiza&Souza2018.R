@@ -180,7 +180,7 @@ LS2018_fit_reduced <- bmm(
 pp_check(LS2018_fit, group = "cueCond", type = "dens_overlay_grouped")
 
 # print results summary
-summary(LS2018_fit)
+summary(LS2018_fit, backend = "brms")
 
 # test hypothesis
 cue_hypothesis <- c(
