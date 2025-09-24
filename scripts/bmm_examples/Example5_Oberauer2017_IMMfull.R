@@ -51,7 +51,7 @@ imm_full_model <- imm(resp_error = "dev_rad",
                       version = "full")
 
 # set up mixture model
-imm_full_formula <- bmf(# fixed intercept & random slope: precision of memory distributions
+imm_full_formula <- bmmformula(# fixed intercept & random slope: precision of memory distributions
   kappa ~ 0 + set_size + (0 + set_size || ID),
   # fixed intercept & random slope: context activation
   c ~ 0 + set_size + (0 + set_size || ID),
