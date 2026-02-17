@@ -180,6 +180,23 @@ results_Bays2009$pmem <- 1 - results_Bays2009$pnt - results_Bays2009$pg
     labs(x = "Set Size", y = "Memory imprecision (SD)", title = "A") +
     clean_plot())
 
+# plot pmem results
+(pmem_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pmem)) +
+    geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
+                     alpha = 0.9, scale = "width") +
+    stat_summary(geom = "pointrange", fun.data = mode_hdci, color = "black",
+                 size = 0.3, linewidth = 0.8,
+                 position = position_dodge(0.1)) +
+    geom_point(data = results_Bays2009,
+               aes(x = setsize, y = pmem), color = "black",
+               shape = "diamond", size = 2.5,
+               position = position_nudge(x = .1, y = 0)) +
+    scale_fill_grey(start = 0, end = .8) +
+    scale_color_grey(start = 0, end = .8) +
+    coord_cartesian(ylim = c(1,.3)) +
+    labs(x = "Set Size", y = "Target responses", title = "B") +
+    clean_plot())
+
 # plot pnt results
 (pnt_plot <- ggplot(fixedFX_draws, aes(x = setsize, y = pnt)) +
     geom_half_violin(position = position_nudge(x = .05, y = 0), side = "r", fill = "darkgrey", color = NA,
