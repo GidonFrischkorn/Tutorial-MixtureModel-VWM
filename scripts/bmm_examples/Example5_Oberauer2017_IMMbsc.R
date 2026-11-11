@@ -58,13 +58,20 @@ imm_bsc_formula <- bmf(# fixed intercept & random slope: precision of memory dis
          # fixed intercept & random slope: general activation
          s ~ 0 + set_size + (0 + set_size || ID))
 
+# same priors on the group-level SDs as the other Example 5 fits (bmm 1.0.1 defaults)
+imm_bsc_prior <-
+  set_prior("student_t(3, 0, 2.5)", class = "sd", nlpar = "kappa") +
+  set_prior("student_t(3, 0, 2.5)", class = "sd", nlpar = "c") +
+  set_prior("student_t(3, 0, 2.5)", class = "sd", nlpar = "s")
+
 filename_IMMbsc <- here("output","fit_E5_OL2017_IMMbsc")
 
 imm_bsc_fit <- bmm(
   model = imm_bsc_model,
-  formula = imm_bsc_formula, 
+  formula = imm_bsc_formula,
   data = data,
-  
+  prior = imm_bsc_prior,
+
   # save settings
   sample_prior = TRUE,
   save_pars = save_pars(all = TRUE),
